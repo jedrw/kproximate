@@ -1,4 +1,4 @@
-module github.com/lupinelab/kproximate
+module github.com/jedrw/kproximate
 
 go 1.22.0
 

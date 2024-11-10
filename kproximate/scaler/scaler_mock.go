@@ -3,7 +3,7 @@ package scaler
 import (
 	"context"
 
-	"github.com/lupinelab/kproximate/kubernetes"
+	"github.com/jedrw/kproximate/kubernetes"
 )
 
 type Mock struct {

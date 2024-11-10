@@ -8,7 +8,7 @@ There are four main requirements for configuring and deploying kproximate:
 
 ## Proxmox API Access
 
-The [create_kproximate_api_token.sh](https://github.com/lupinelab/kproximate/tree/main/examples/create_proxmox_api_token.sh) script can be run on a Proxmox host to create a token with the required privileges, it will return the token ID and token which will be required later.
+The [create_kproximate_api_token.sh](https://github.com/jedrw/kproximate/tree/main/examples/create_proxmox_api_token.sh) script can be run on a Proxmox host to create a token with the required privileges, it will return the token ID and token which will be required later.
 
 A custom user/token can be used, however the below privileges must be granted to it:
 
@@ -48,7 +48,7 @@ Example:
 
 ### Join by qemu-exec (recommended)
 
-The [create_kproximate_template_exec.sh](https://github.com/lupinelab/kproximate/tree/main/examples/create_kproximate_template_exec.sh) script creates a template that joins the Kubernetes cluster using a command that is executed by qemu-exec.
+The [create_kproximate_template_exec.sh](https://github.com/jedrw/kproximate/tree/main/examples/create_kproximate_template_exec.sh) script creates a template that joins the Kubernetes cluster using a command that is executed by qemu-exec.
 
 The benefits of this are:
   - The template does not contain secrets
@@ -68,7 +68,7 @@ The value of `kpJoinCommand` is executed on the new node as follows: `bash -c <y
 
 ### Join on first boot
 
-The [create_kproximate_template.sh](https://github.com/lupinelab/kproximate/tree/main/examples/create_kproximate_template.sh) script creates a template that joins the Kubernetes cluster automatically on first boot.
+The [create_kproximate_template.sh](https://github.com/jedrw/kproximate/tree/main/examples/create_kproximate_template.sh) script creates a template that joins the Kubernetes cluster automatically on first boot.
 
 ### Using local storage
 
@@ -95,12 +95,12 @@ Your Proxmox API endpoint should also be accessible from this network. For examp
 
 ## Installing kproximate
 
-*NOTE: All charts have now been moved to oci://gchr.io/lupinelab/kproximate, all versions up to 0.1.9 have been duplicated here but new versions will NOT be published on the old repository https://charts.lupinelab.co.uk*
+*NOTE: All charts have now been moved to oci://gchr.io/jedrw/kproximate, all versions up to 0.1.9 have been duplicated here but new versions will NOT be published on the old repository https://charts.lupinelab.co.uk*
 
-A helm chart is provided at oci://ghcr.io/lupinelab for installing the application into your kubernetes cluster. See [example-values.yaml](https://github.com/lupinelab/kproximate/tree/main/examples/example-values.yaml) for a basic configuraton example.
+A helm chart is provided at oci://ghcr.io/jedrw for installing the application into your kubernetes cluster. See [example-values.yaml](https://github.com/jedrw/kproximate/tree/main/examples/example-values.yaml) for a basic configuraton example.
 
 Install kproximate:
 
-`helm install kproximate oci://ghcr.io/lupinelab/kproximate -f your-values.yaml -n kproximate --create-namespace`
+`helm install kproximate oci://ghcr.io/jedrw/kproximate -f your-values.yaml -n kproximate --create-namespace`
 
-See [values.yaml](https://github.com/lupinelab/kproximate/tree/main/chart/kproximate/values.yaml) in the helm chart for the full set of configuration options and defaults.
+See [values.yaml](https://github.com/jedrw/kproximate/tree/main/chart/kproximate/values.yaml) in the helm chart for the full set of configuration options and defaults.

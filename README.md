@@ -17,7 +17,7 @@ While it is a pretty niche project, some possible use cases include:
 - Just because...
 
 ## Configuration and Installation
-See [here](https://github.com/lupinelab/kproximate/tree/main/examples) for example setup scripts and configuration.
+See [here](https://github.com/jedrw/kproximate/tree/main/examples) for example setup scripts and configuration.
 
 ## Scaling
 Kproximate polls the kubernetes cluster by default every 10 seconds looking for unschedulable resources.
@@ -42,7 +42,7 @@ If no host has been selected after all hosts have been assessed then the host wi
 Scaling down is very agressive. When the cluster is not scaling and the cluster's load is calculated to be satisfiable by n-1 nodes while also remaining within the configured load headroom value then a negative scale event is triggered. The node with the least allocated resources is selected and all pods are evicted from it before it is removed from the cluster and deleted.
 
 ## Node Labels
-Nodes can labeled with dynamic values only known at provisioning time using go templating language in a configuration option. Currently this is limited to a single templatable value `TargetHost` which is the name of the proxmox host that the kproximate node will be provisioned on. More options may be added in the future as more use cases appear. See [example-values.yaml](https://github.com/lupinelab/kproximate/tree/main/examples/example-values.yaml) for an example.
+Nodes can labeled with dynamic values only known at provisioning time using go templating language in a configuration option. Currently this is limited to a single templatable value `TargetHost` which is the name of the proxmox host that the kproximate node will be provisioned on. More options may be added in the future as more use cases appear. See [example-values.yaml](https://github.com/jedrw/kproximate/tree/main/examples/example-values.yaml) for an example.
 
 ## Metrics
 A metrics endpoint is provided at `kproximate.kproximate.cluster.svc.local/metrics` by default. The following metrics are provided in Prometheus format with CPU measured in [CPU units](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-cpu) and memory measured in bytes:

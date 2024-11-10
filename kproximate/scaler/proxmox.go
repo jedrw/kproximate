@@ -11,10 +11,10 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/lupinelab/kproximate/config"
-	"github.com/lupinelab/kproximate/kubernetes"
-	"github.com/lupinelab/kproximate/logger"
-	"github.com/lupinelab/kproximate/proxmox"
+	"github.com/jedrw/kproximate/config"
+	"github.com/jedrw/kproximate/kubernetes"
+	"github.com/jedrw/kproximate/logger"
+	"github.com/jedrw/kproximate/proxmox"
 	"k8s.io/apimachinery/pkg/util/uuid"
 )
 

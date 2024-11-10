@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lupinelab/kproximate/config"
-	"github.com/lupinelab/kproximate/logger"
-	"github.com/lupinelab/kproximate/scaler"
+	"github.com/jedrw/kproximate/config"
+	"github.com/jedrw/kproximate/logger"
+	"github.com/jedrw/kproximate/scaler"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"

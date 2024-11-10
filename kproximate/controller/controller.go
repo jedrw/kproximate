@@ -10,11 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lupinelab/kproximate/config"
-	"github.com/lupinelab/kproximate/logger"
-	"github.com/lupinelab/kproximate/metrics"
-	"github.com/lupinelab/kproximate/rabbitmq"
-	"github.com/lupinelab/kproximate/scaler"
+	"github.com/jedrw/kproximate/config"
+	"github.com/jedrw/kproximate/logger"
+	"github.com/jedrw/kproximate/metrics"
+	"github.com/jedrw/kproximate/rabbitmq"
+	"github.com/jedrw/kproximate/scaler"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 

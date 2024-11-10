@@ -47,7 +47,7 @@ jobs:
           command: echo $GITHUB_TOKEN | docker login ghcr.io -u $CIRCLE_PROJECT_USERNAME --password-stdin
       - run:
           name: Build & push << parameters.component >> image
-          command: docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile.<< parameters.component >> -t ghcr.io/lupinelab/kproximate-<< parameters.component >>:$CIRCLE_TAG --push . 
+          command: docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile.<< parameters.component >> -t ghcr.io/jedrw/kproximate-<< parameters.component >>:$CIRCLE_TAG --push . 
   publish_helm_chart:
     docker:
       - image: cimg/base:current
