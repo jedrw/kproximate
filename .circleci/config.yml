@@ -11,7 +11,7 @@ commands:
 jobs:
   test:
     working_directory: ~/project/kproximate
-    docker: 
+    docker:
       - image: cimg/go:1.22
     steps:
       - checkout:
@@ -27,7 +27,7 @@ jobs:
           key: go-mod-v1-{{ checksum "go.sum" }}
           paths:
             - "/go/pkg/mod"
-      - run: 
+      - run:
           name: Run tests
           command: go test ./...
   build_image:
@@ -35,11 +35,11 @@ jobs:
       - image: cimg/base:current
     parameters:
       component:
-        type: string    
+        type: string
     steps:
       - setup_remote_docker
       - checkout
-      - run: 
+      - run:
           name: Setup docker buildx
           command: docker buildx create --use --name multiarch --driver docker-container
       - run:
@@ -47,7 +47,13 @@ jobs:
           command: echo $GITHUB_TOKEN | docker login ghcr.io -u $CIRCLE_PROJECT_USERNAME --password-stdin
       - run:
           name: Build & push << parameters.component >> image
-          command: docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile.<< parameters.component >> -t ghcr.io/jedrw/kproximate-<< parameters.component >>:$CIRCLE_TAG --push . 
+          command: docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            -f Dockerfile \
+            --build-arg COMPONENT=<< parameters.component >>
+            -t ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME-<< parameters.component >>:$CIRCLE_TAG \
+            --push \
+            .
   publish_helm_chart:
     docker:
       - image: cimg/base:current
@@ -58,14 +64,14 @@ jobs:
           name: Package the helm chart
           command: |
             helm repo add bitnami https://charts.bitnami.com/bitnami
-            helm dependency build ./chart/kproximate/
-            helm package ./chart/kproximate --version $CIRCLE_TAG
+            helm dependency build ./chart/$CIRCLE_PROJECT_REPONAME/
+            helm package ./chart/$CIRCLE_PROJECT_REPONAME --version $CIRCLE_TAG
       - run:
           name: Login to ghcr
           command: echo $GITHUB_TOKEN | docker login ghcr.io -u $CIRCLE_PROJECT_USERNAME --password-stdin
       - run:
           name: Push the helm chart
-          command: helm push kproximate-$CIRCLE_TAG.tgz oci://ghcr.io/$CIRCLE_PROJECT_USERNAME
+          command: helm push $CIRCLE_PROJECT_REPONAME-$CIRCLE_TAG.tgz oci://ghcr.io/$CIRCLE_PROJECT_USERNAME
 
 workflows:
   test_build_and_publish:
@@ -99,4 +105,3 @@ workflows:
               ignore: /.*/
             tags:
               only: /\d+\.\d+\.\d+/
-
