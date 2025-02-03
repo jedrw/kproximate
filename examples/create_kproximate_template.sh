@@ -43,7 +43,7 @@ NEWDISK=${CODENAME}.img
 # Expand the image
 virt-filesystems --long -h --all --format=raw -a $IMG
 truncate -r $IMG $NEWDISK
-truncate -s 10G $NEWDISK
+truncate -s 25G $NEWDISK
 virt-resize --format raw --expand /dev/sda1 $IMG $NEWDISK
 
 # Configure the new img
