@@ -191,44 +191,6 @@ func (scaler *ProxmoxScaler) SelectTargetHosts(scaleEvents []*ScaleEvent) error 
 	return nil
 }
 
-func waitForNodeStart(ctx context.Context, cancel context.CancelFunc, scaleEvent *ScaleEvent, ok chan (bool), errchan chan (error)) error {
-	select {
-	case <-ctx.Done():
-		cancel()
-		return fmt.Errorf("timed out waiting for %s to start", scaleEvent.NodeName)
-
-	case err := <-errchan:
-		return err
-
-	case <-ok:
-		return nil
-	}
-}
-
-func waitForNodeReady(ctx context.Context, cancel context.CancelFunc, scaleEvent *ScaleEvent, ok chan (bool), errchan chan (error)) error {
-	select {
-	case <-ctx.Done():
-		cancel()
-		return fmt.Errorf("timed out waiting for %s to be ready", scaleEvent.NodeName)
-
-	case err := <-errchan:
-		return err
-
-	case <-ok:
-		return nil
-	}
-}
-
-func waitForNodeJoin(ctx context.Context, cancel context.CancelFunc, scaleEvent *ScaleEvent, ok chan (bool)) error {
-	select {
-	case <-ctx.Done():
-		cancel()
-		return fmt.Errorf("timed out waiting for %s to join kubernetes cluster", scaleEvent.NodeName)
-	case <-ok:
-		return nil
-	}
-}
-
 func (scaler *ProxmoxScaler) renderNodeLabels(scaleEvent *ScaleEvent) (map[string]string, error) {
 	labels := map[string]string{}
 	for _, label := range strings.Split(scaler.config.KpNodeLabels, ",") {
@@ -262,13 +224,6 @@ func (scaler *ProxmoxScaler) renderNodeLabels(scaleEvent *ScaleEvent) (map[strin
 
 func (scaler *ProxmoxScaler) ScaleUp(ctx context.Context, scaleEvent *ScaleEvent) error {
 	logger.InfoLog(fmt.Sprintf("Provisioning %s on %s", scaleEvent.NodeName, scaleEvent.TargetHost.Node))
-
-	okChan := make(chan bool)
-	defer close(okChan)
-
-	errChan := make(chan error)
-	defer close(errChan)
-
 	pctx, cancelPCtx := context.WithTimeout(
 		ctx,
 		time.Duration(
@@ -279,10 +234,8 @@ func (scaler *ProxmoxScaler) ScaleUp(ctx context.Context, scaleEvent *ScaleEvent
 	)
 	defer cancelPCtx()
 
-	go scaler.Proxmox.NewKpNode(
+	err := scaler.Proxmox.NewKpNode(
 		pctx,
-		okChan,
-		errChan,
 		scaleEvent.NodeName,
 		scaleEvent.TargetHost.Node,
 		scaler.config.KpNodeParams,
@@ -290,8 +243,6 @@ func (scaler *ProxmoxScaler) ScaleUp(ctx context.Context, scaleEvent *ScaleEvent
 		scaler.config.KpNodeTemplateName,
 		scaler.config.KpJoinCommand,
 	)
-
-	err := waitForNodeStart(pctx, cancelPCtx, scaleEvent, okChan, errChan)
 	if err != nil {
 		return err
 	}
@@ -299,10 +250,7 @@ func (scaler *ProxmoxScaler) ScaleUp(ctx context.Context, scaleEvent *ScaleEvent
 	logger.InfoLog(fmt.Sprintf("Started %s", scaleEvent.NodeName))
 
 	if scaler.config.KpQemuExecJoin {
-		go scaler.Proxmox.CheckNodeReady(pctx, okChan, errChan, scaleEvent.NodeName)
-
-		// TODO could this call CheckNodeReady itself?
-		err := waitForNodeReady(pctx, cancelPCtx, scaleEvent, okChan, errChan)
+		err = scaler.Proxmox.CheckNodeReady(pctx, scaleEvent.NodeName)
 		if err != nil {
 			return err
 		}
@@ -325,17 +273,10 @@ func (scaler *ProxmoxScaler) ScaleUp(ctx context.Context, scaleEvent *ScaleEvent
 	)
 	defer cancelKCtx()
 
-	go scaler.Kubernetes.CheckForNodeJoin(
+	scaler.Kubernetes.CheckForNodeJoin(
 		kctx,
-		okChan,
 		scaleEvent.NodeName,
 	)
-
-	// TODO could this call CheckForNodeJoin itself?
-	err = waitForNodeJoin(kctx, cancelKCtx, scaleEvent, okChan)
-	if err != nil {
-		return err
-	}
 
 	logger.InfoLog(fmt.Sprintf("%s joined kubernetes cluster", scaleEvent.NodeName))
 

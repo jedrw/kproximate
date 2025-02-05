@@ -34,7 +34,7 @@ type Kubernetes interface {
 	GetKpNodes(kpNodeNameRegex regexp.Regexp) ([]apiv1.Node, error)
 	LabelKpNode(kpNodeName string, kpNodeLabels map[string]string) error
 	GetKpNodesAllocatedResources(kpNodeNameRegex regexp.Regexp) (map[string]AllocatedResources, error)
-	CheckForNodeJoin(ctx context.Context, ok chan<- bool, newKpNodeName string)
+	CheckForNodeJoin(ctx context.Context, newKpNodeName string)
 	DeleteKpNode(ctx context.Context, kpNodeName string) error
 }
 
@@ -284,17 +284,16 @@ func (k *KubernetesClient) GetKpNodesAllocatedResources(kpNodeNameRegex regexp.R
 	return allocatedResources, err
 }
 
-func (k *KubernetesClient) CheckForNodeJoin(ctx context.Context, ok chan<- bool, newKpNodeName string) {
+func (k *KubernetesClient) CheckForNodeJoin(ctx context.Context, newKpNodeName string) {
 	for {
 		newkpNode, _ := k.client.CoreV1().Nodes().Get(
-			context.TODO(),
+			ctx,
 			newKpNodeName,
 			metav1.GetOptions{},
 		)
 
 		for _, condition := range newkpNode.Status.Conditions {
 			if condition.Type == apiv1.NodeReady && condition.Status == apiv1.ConditionTrue {
-				ok <- true
 				return
 			}
 		}

@@ -31,7 +31,7 @@ func TestRequiredScaleEventsFor1CPU(t *testing.T) {
 
 	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err)
 	}
 
 	if len(requiredScaleEvents) != 1 {
@@ -58,7 +58,7 @@ func TestRequiredScaleEventsFor3CPU(t *testing.T) {
 
 	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err)
 	}
 
 	if len(requiredScaleEvents) != 2 {
@@ -85,7 +85,7 @@ func TestRequiredScaleEventsFor1024MBMemory(t *testing.T) {
 
 	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err)
 	}
 
 	if len(requiredScaleEvents) != 1 {
@@ -112,7 +112,7 @@ func TestRequiredScaleEventsFor3072MBMemory(t *testing.T) {
 
 	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err)
 	}
 
 	if len(requiredScaleEvents) != 2 {
@@ -139,7 +139,7 @@ func TestRequiredScaleEventsFor1CPU3072MBMemory(t *testing.T) {
 
 	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err)
 	}
 
 	if len(requiredScaleEvents) != 2 {
@@ -166,7 +166,7 @@ func TestRequiredScaleEventsFor1CPU3072MBMemory1QueuedEvent(t *testing.T) {
 
 	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err)
 	}
 
 	if len(requiredScaleEvents) != 1 {

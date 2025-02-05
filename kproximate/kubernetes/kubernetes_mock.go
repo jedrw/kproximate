@@ -59,7 +59,7 @@ func (m *KubernetesMock) GetKpNodesAllocatedResources(kpNodeNameRegex regexp.Reg
 	return m.AllocatedResources, nil
 }
 
-func (m *KubernetesMock) CheckForNodeJoin(ctx context.Context, ok chan<- bool, newKpNodeName string) {
+func (m *KubernetesMock) CheckForNodeJoin(ctx context.Context, newKpNodeName string) {
 }
 
 func (m *KubernetesMock) DeleteKpNode(ctx context.Context, kpNodeName string) error {

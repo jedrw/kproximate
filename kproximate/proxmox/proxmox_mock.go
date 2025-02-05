@@ -37,7 +37,8 @@ func (p *ProxmoxMock) GetKpNodeTemplateRef(kpNodeTemplateName string, LocalTempl
 	return &p.KpNodeTemplateRef, nil
 }
 
-func (p *ProxmoxMock) NewKpNode(ctx context.Context, okchan chan<- bool, errchan chan<- error, newKpNodeName string, targetNode string, kpNodeParams map[string]interface{}, usingLocalStorage bool, kpNodeTemplateName string, kpJoinCommand string) {
+func (p *ProxmoxMock) NewKpNode(ctx context.Context, newKpNodeName string, targetNode string, kpNodeParams map[string]interface{}, usingLocalStorage bool, kpNodeTemplateName string, kpJoinCommand string) error {
+	return nil
 }
 
 func (p *ProxmoxMock) DeleteKpNode(name string, kpNodeName regexp.Regexp) error {
@@ -52,5 +53,6 @@ func (p *ProxmoxMock) GetQemuExecJoinStatus(nodeName string, pid int) (QemuExecS
 	return p.QemuExecJoinStatus, nil
 }
 
-func (p *ProxmoxMock) CheckNodeReady(ctx context.Context, okchan chan<- bool, errchan chan<- error, nodeName string) {
+func (p *ProxmoxMock) CheckNodeReady(ctx context.Context, nodeName string) error {
+	return nil
 }
