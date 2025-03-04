@@ -7,7 +7,6 @@ ARG TARGETARCH
 RUN cd kproximate/$COMPONENT && GOOS=linux GOARCH=$TARGETARCH go build -v -o /go/bin/$COMPONENT
 RUN upx /go/bin/$COMPONENT
 
-# final stage
 FROM --platform=$BUILDPLATFORM alpine
 ARG COMPONENT
 RUN adduser \    
@@ -20,5 +19,7 @@ RUN adduser \
     "kproximate"
 
 COPY --from=build /go/bin/$COMPONENT /usr/local/bin/
+RUN echo -e "#!/usr/bin/env sh\n\nexec ${COMPONENT}" >> entrypoint.sh
+RUN chmod +x entrypoint.sh
 USER kproximate:kproximate
-ENTRYPOINT ["$COMPONENT"]
+ENTRYPOINT ["./entrypoint.sh"]
