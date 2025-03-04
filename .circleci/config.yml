@@ -6,7 +6,6 @@ commands:
       - run: curl -fsSL -o /tmp/get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
       - run: chmod 700 /tmp/get_helm.sh
       - run: /tmp/get_helm.sh
-      - run: helm plugin install https://github.com/chartmuseum/helm-push
 
 jobs:
   test:
@@ -47,13 +46,7 @@ jobs:
           command: echo $GITHUB_TOKEN | docker login ghcr.io -u $CIRCLE_PROJECT_USERNAME --password-stdin
       - run:
           name: Build & push << parameters.component >> image
-          command: docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            -f Dockerfile \
-            --build-arg COMPONENT=<< parameters.component >>
-            -t ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME-<< parameters.component >>:$CIRCLE_TAG \
-            --push \
-            .
+          command: docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile --build-arg COMPONENT=<< parameters.component >> -t ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME-<< parameters.component >>:$CIRCLE_TAG --push .
   publish_helm_chart:
     docker:
       - image: cimg/base:current
