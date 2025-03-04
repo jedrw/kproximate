@@ -353,8 +353,6 @@ func (scaler *ProxmoxScaler) AssessScaleDown() (*ScaleEvent, error) {
 	acceptCpuScaleDown := scaler.assessScaleDownForResourceType(totalAllocatedResources.Cpu, totalCpuAllocatable, int64(scaler.config.KpNodeCores))
 	acceptMemoryScaleDown := scaler.assessScaleDownForResourceType(totalAllocatedResources.Memory, totalMemoryAllocatable, int64(scaler.config.KpNodeMemory<<20))
 
-	fmt.Printf("acceptCpu: %t\n", acceptCpuScaleDown)
-	fmt.Printf("acceptMemory: %t\n", acceptMemoryScaleDown)
 	if !(acceptCpuScaleDown && acceptMemoryScaleDown) {
 		return nil, nil
 	}
