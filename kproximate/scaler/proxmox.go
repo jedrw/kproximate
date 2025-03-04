@@ -353,6 +353,8 @@ func (scaler *ProxmoxScaler) AssessScaleDown() (*ScaleEvent, error) {
 	acceptCpuScaleDown := scaler.assessScaleDownForResourceType(totalAllocatedResources.Cpu, totalCpuAllocatable, int64(scaler.config.KpNodeCores))
 	acceptMemoryScaleDown := scaler.assessScaleDownForResourceType(totalAllocatedResources.Memory, totalMemoryAllocatable, int64(scaler.config.KpNodeMemory<<20))
 
+	fmt.Printf("acceptCpu: %t\n", acceptCpuScaleDown)
+	fmt.Printf("acceptMemory: %t\n", acceptMemoryScaleDown)
 	if !(acceptCpuScaleDown && acceptMemoryScaleDown) {
 		return nil, nil
 	}
@@ -369,32 +371,19 @@ func (scaler *ProxmoxScaler) AssessScaleDown() (*ScaleEvent, error) {
 	return &scaleEvent, nil
 }
 
-// func (scaler *ProxmoxScaler) assessScaleDownForResourceType(currentResourceAllocated float64, totalResourceAllocatable int64, kpNodeResourceCapacity int64) bool {
-// 	if currentResourceAllocated == 0 {
-// 		return false
-// 	}
-
-// 	// The proportion of the cluster's total allocatable resources currently allocated
-// 	// represented as a float between 0 and 1
-// 	totalResourceLoad := currentResourceAllocated / float64(totalResourceAllocatable)
-// 	// The expected allocatable resources of the cluster after scaledown minus the
-// 	// requested load headroom.
-// 	acceptableResourceLoadForScaleDown := (float64(totalResourceAllocatable-int64(kpNodeResourceCapacity)) / float64(totalResourceAllocatable)) -
-// 		(totalResourceLoad * scaler.config.LoadHeadroom)
-
-// 	return totalResourceLoad < acceptableResourceLoadForScaleDown
-// }
-
 func (scaler *ProxmoxScaler) assessScaleDownForResourceType(currentResourceAllocated float64, totalResourceAllocatable int64, kpNodeResourceCapacity int64) bool {
 	if currentResourceAllocated == 0 {
-		return false
+		return true
 	}
 
-	postScaledownCapacity := totalResourceAllocatable - kpNodeResourceCapacity
-	postScaleDownLoad := int64(math.Ceil(currentResourceAllocated) / float64(postScaledownCapacity) * 100)
-	postScaleDownHeadroom := 100 - postScaleDownLoad
+	// The proportion of the cluster's total allocatable resources currently allocated
+	// represented as a float between 0 and 1
+	totalResourceLoad := currentResourceAllocated / float64(totalResourceAllocatable)
+	// The expected resource load after scaledown
+	totalCapacityAfterScaleDown := (float64(totalResourceAllocatable-int64(kpNodeResourceCapacity)) / float64(totalResourceAllocatable))
+	acceptableResourceLoadForScaleDown := totalCapacityAfterScaleDown - (totalResourceLoad * scaler.config.LoadHeadroom)
 
-	return postScaleDownHeadroom > int64(scaler.config.LoadHeadroom*100)
+	return totalResourceLoad < acceptableResourceLoadForScaleDown
 }
 
 func (scaler *ProxmoxScaler) selectScaleDownTarget(scaleEvent *ScaleEvent) error {

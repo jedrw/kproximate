@@ -147,6 +147,33 @@ func TestRequiredScaleEventsFor1CPU3072MBMemory(t *testing.T) {
 	}
 }
 
+func TestRequiredScaleEventsFor4CPU4096MBMemory(t *testing.T) {
+	s := ProxmoxScaler{
+		Kubernetes: &kubernetes.KubernetesMock{
+			UnschedulableResources: kubernetes.UnschedulableResources{
+				Cpu:    4,
+				Memory: 4294967296,
+			},
+		},
+		config: config.KproximateConfig{
+			KpNodeCores:  4,
+			KpNodeMemory: 4096,
+			MaxKpNodes:   4,
+		},
+	}
+
+	currentEvents := 0
+
+	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(requiredScaleEvents) != 1 {
+		t.Errorf("Expected exactly 1 scaleEvent, got: %d", len(requiredScaleEvents))
+	}
+}
+
 func TestRequiredScaleEventsFor1CPU3072MBMemory1QueuedEvent(t *testing.T) {
 	s := ProxmoxScaler{
 		Kubernetes: &kubernetes.KubernetesMock{
@@ -266,8 +293,8 @@ func TestAssessScaleDownForResourceTypeZeroLoad(t *testing.T) {
 	}
 
 	scaleDownZeroLoad := scaler.assessScaleDownForResourceType(0, 5, 5)
-	if scaleDownZeroLoad {
-		t.Errorf("Expected false but got %t", scaleDownZeroLoad)
+	if !scaleDownZeroLoad {
+		t.Errorf("Expected true but got %t", scaleDownZeroLoad)
 	}
 }
 
@@ -278,7 +305,7 @@ func TestAssessScaleDownForResourceTypeAcceptable(t *testing.T) {
 		},
 	}
 
-	scaleDownAcceptable := scaler.assessScaleDownForResourceType(6, 10, 2)
+	scaleDownAcceptable := scaler.assessScaleDownForResourceType(5, 10, 2)
 	if !scaleDownAcceptable {
 		t.Errorf("Expected true but got %t", scaleDownAcceptable)
 	}
@@ -373,7 +400,10 @@ func TestAssessScaleDownIsAcceptable(t *testing.T) {
 		},
 	}
 
-	scaleEvent, _ := s.AssessScaleDown()
+	scaleEvent, err := s.AssessScaleDown()
+	if err != nil {
+		t.Error(err)
+	}
 
 	if scaleEvent == nil {
 		t.Error("AssessScaleDown returned nil")
@@ -400,21 +430,25 @@ func TestAssessScaleDownIsUnacceptable(t *testing.T) {
 					Memory: 2147483648.0,
 				},
 				"kp-node-a3c5e4ef-4713-473f-b9f7-3abe413c38ff": {
-					Cpu:    0.49,
-					Memory: 1147483648.0,
+					Cpu:    2.0,
+					Memory: 2147483648.0,
 				},
 				"kp-node-97d74769-22af-420d-9f5e-b2d3c7dd6e7e": {
 					Cpu:    1.0,
-					Memory: 0.0,
+					Memory: 1073741824.0,
 				},
 				"kp-node-96f665dd-21c3-4ce1-a1e4-c7717c5338a3": {
+					Cpu:    1.0,
+					Memory: 1073741824.0,
+				},
+				"kp-node-76f665dd-21c3-4ce1-a1e4-c7717c5338a3": {
 					Cpu:    0.0,
 					Memory: 0.0,
 				},
 			},
 			WorkerNodesAllocatableResources: kubernetes.WorkerNodesAllocatableResources{
-				Cpu:    12,
-				Memory: 12884901888,
+				Cpu:    14,
+				Memory: 15032385536,
 			},
 		},
 		config: config.KproximateConfig{
@@ -424,7 +458,10 @@ func TestAssessScaleDownIsUnacceptable(t *testing.T) {
 		},
 	}
 
-	scaleEvent, _ := s.AssessScaleDown()
+	scaleEvent, err := s.AssessScaleDown()
+	if err != nil {
+		t.Error(err)
+	}
 
 	if scaleEvent != nil {
 		t.Error("AssessScaleDown did not return nil")
