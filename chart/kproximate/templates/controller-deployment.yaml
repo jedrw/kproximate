@@ -25,7 +25,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: "{{ .Chart.Name }}-controller"
-          image: "{{ .Values.image.registry }}/kproximate-controller:{{ .Chart.Version }}"
+          image: "{{ .Values.image.registry }}/kproximate-controller:{{ .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           envFrom:
           - configMapRef:
@@ -76,3 +76,5 @@ spec:
           while [ $(curl -sw '%{http_code}' --user ${rabbitMQUser}:${rabbitMQPassword} "http://${rabbitMQHost}:15672/api/health/checks/local-alarms" -o /dev/null) -ne 200 ]; do
             sleep 5;
           done
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
