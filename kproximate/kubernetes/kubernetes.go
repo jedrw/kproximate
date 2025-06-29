@@ -338,6 +338,53 @@ func (k *KubernetesClient) waitForPodsDelete(ctx context.Context, evictedPods *a
 
 				if pod.Spec.NodeName != kpNodeName || apierrors.IsNotFound(err) {
 					continue
+				} else if err != nil {
+					return false, err
+				} else {
+					deleted = false
+				}
+			}
+
+			return deleted, err
+		},
+	)
+
+	if errors.Is(err, context.DeadlineExceeded) {
+		return nil
+	}
+
+	return err
+}
+
+func (k *KubernetesClient) waitForVolumeDetach(ctx context.Context, kpNodeName string) error {
+	volumeAttachments, err := k.client.StorageV1().VolumeAttachments().List(
+		ctx,
+		metav1.ListOptions{
+			FieldSelector: fmt.Sprintf("spec.nodeName=%s", kpNodeName),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	err = wait.PollUntilContextCancel(
+		ctx,
+		time.Duration(time.Second*5),
+		true,
+		func(ctx context.Context) (bool, error) {
+			var err error
+			deleted := true
+			for _, volume := range volumeAttachments.Items {
+				_, err := k.client.StorageV1().VolumeAttachments().Get(
+					ctx,
+					volume.Name,
+					metav1.GetOptions{},
+				)
+
+				if apierrors.IsNotFound(err) {
+					continue
+				} else if err != nil {
+					return false, err
 				} else {
 					deleted = false
 				}
@@ -390,7 +437,7 @@ func (k *KubernetesClient) drainKpNode(ctx context.Context, kpNodeName string) e
 		return err
 	}
 
-	return err
+	return nil
 }
 
 func (k *KubernetesClient) DeleteKpNode(ctx context.Context, kpNodeName string) error {
@@ -404,6 +451,11 @@ func (k *KubernetesClient) DeleteKpNode(ctx context.Context, kpNodeName string) 
 		return err
 	}
 
+	err = k.waitForVolumeDetach(ctx, kpNodeName)
+	if err != nil {
+		return err
+	}
+
 	err = k.client.CoreV1().Nodes().Delete(
 		ctx,
 		kpNodeName,
@@ -413,7 +465,7 @@ func (k *KubernetesClient) DeleteKpNode(ctx context.Context, kpNodeName string) 
 		return err
 	}
 
-	return err
+	return nil
 }
 
 func (k *KubernetesClient) LabelKpNode(kpNodeName string, newKpNodeLabels map[string]string) error {
