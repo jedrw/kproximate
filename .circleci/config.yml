@@ -77,7 +77,7 @@ jobs:
           command: |
             helm repo add bitnami https://charts.bitnami.com/bitnami
             helm dependency build ./chart/$CIRCLE_PROJECT_REPONAME/
-            helm package ./chart/$CIRCLE_PROJECT_REPONAME --version $VERSION
+            helm package ./chart/$CIRCLE_PROJECT_REPONAME --version $VERSION --app-version $VERSION
       - run:
           name: Push the helm chart
           command: helm push $CIRCLE_PROJECT_REPONAME-$VERSION.tgz oci://ghcr.io/$CIRCLE_PROJECT_USERNAME
