@@ -24,4 +24,4 @@ rules:
   verbs: ["get", "list"]
 - apiGroups: ["storage.k8s.io"]
   resources: ["volumeattachments"]
-  verbs: ["list", "delete"]
+  verbs: ["get", "list"]
