@@ -6,6 +6,24 @@ commands:
       - run: curl -fsSL -o /tmp/get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
       - run: chmod 700 /tmp/get_helm.sh
       - run: /tmp/get_helm.sh
+  login_to_ghcr:
+    steps:
+      - run:
+          name: Login to ghcr
+          command: echo $GITHUB_TOKEN | docker login ghcr.io -u $CIRCLE_PROJECT_USERNAME --password-stdin
+  generate_version:
+    steps:
+      - run:
+          name: Generate version
+          command: |
+            if [ "$CIRCLE_BRANCH" = "develop" ]; then 
+              VERSION="0.0.0-beta-$CIRCLE_SHA1"
+            else
+              VERSION="${CIRCLE_TAG}"
+            fi
+
+            echo $VERSION
+            echo "export VERSION=$VERSION" >> "$BASH_ENV"
 
 jobs:
   test:
@@ -41,30 +59,28 @@ jobs:
       - run:
           name: Setup docker buildx
           command: docker buildx create --use --name multiarch --driver docker-container
-      - run:
-          name: Login to ghcr
-          command: echo $GITHUB_TOKEN | docker login ghcr.io -u $CIRCLE_PROJECT_USERNAME --password-stdin
+      - login_to_ghcr
+      - generate_version
       - run:
           name: Build & push << parameters.component >> image
-          command: docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile --build-arg COMPONENT=<< parameters.component >> -t ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME-<< parameters.component >>:$CIRCLE_TAG --push .
+          command: docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile --build-arg COMPONENT=<< parameters.component >> -t ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME-<< parameters.component >>:$VERSION --push .
   publish_helm_chart:
     docker:
       - image: cimg/base:current
     steps:
       - setup_helm
       - checkout
+      - login_to_ghcr
+      - generate_version
       - run:
           name: Package the helm chart
           command: |
             helm repo add bitnami https://charts.bitnami.com/bitnami
             helm dependency build ./chart/$CIRCLE_PROJECT_REPONAME/
-            helm package ./chart/$CIRCLE_PROJECT_REPONAME --version $CIRCLE_TAG
-      - run:
-          name: Login to ghcr
-          command: echo $GITHUB_TOKEN | docker login ghcr.io -u $CIRCLE_PROJECT_USERNAME --password-stdin
+            helm package ./chart/$CIRCLE_PROJECT_REPONAME --version $VERSION
       - run:
           name: Push the helm chart
-          command: helm push $CIRCLE_PROJECT_REPONAME-$CIRCLE_TAG.tgz oci://ghcr.io/$CIRCLE_PROJECT_USERNAME
+          command: helm push $CIRCLE_PROJECT_REPONAME-$VERSION.tgz oci://ghcr.io/$CIRCLE_PROJECT_USERNAME
 
 workflows:
   test_build_and_publish:
@@ -84,7 +100,7 @@ workflows:
               component: ["controller", "worker"]
           filters:
             branches:
-              ignore: /.*/
+              only: develop
             tags:
               only: /\d+\.\d+\.\d+/
       - publish_helm_chart:
@@ -95,6 +111,6 @@ workflows:
             - build_image
           filters:
             branches:
-              ignore: /.*/
+              only: develop
             tags:
               only: /\d+\.\d+\.\d+/
