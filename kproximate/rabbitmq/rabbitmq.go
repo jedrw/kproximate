@@ -45,13 +45,13 @@ func NewChannel(conn *amqp.Connection) *amqp.Channel {
 	return ch
 }
 
-func DeclareQueue(ch *amqp.Channel, queueName string) *amqp.Queue {
+func DeclareQueue(ch *amqp.Channel, queueName string) error {
 	args := amqp.Table{
 		"x-queue-type":     "quorum",
 		"x-delivery-limit": 2,
 	}
 
-	q, err := ch.QueueDeclare(
+	_, err := ch.QueueDeclare(
 		queueName, // name
 		true,      // durable
 		false,     // delete when unused
@@ -60,10 +60,10 @@ func DeclareQueue(ch *amqp.Channel, queueName string) *amqp.Queue {
 		args,      // arguments
 	)
 	if err != nil {
-		logger.ErrorLog("Failed to declare a queue", "error", err)
+		return err
 	}
 
-	return &q
+	return nil
 }
 
 func GetPendingScaleEvents(ch *amqp.Channel, queueName string) (int, error) {

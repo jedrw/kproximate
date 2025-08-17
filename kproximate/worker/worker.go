@@ -24,7 +24,7 @@ func main() {
 
 	logger.ConfigureLogger("worker", kpConfig.Debug)
 
-	scaler, err := scaler.NewProxmoxScaler(kpConfig)
+	kpScaler, err := scaler.NewProxmoxScaler(kpConfig)
 	if err != nil {
 		logger.ErrorLog("Failed to initialise scaler", "error", err)
 	}
@@ -37,58 +37,43 @@ func main() {
 	conn, _ := rabbitmq.NewRabbitmqConnection(rabbitConfig)
 	defer conn.Close()
 
-	scaleUpChannel := rabbitmq.NewChannel(conn)
-	defer scaleUpChannel.Close()
-	scaleUpQueue := rabbitmq.DeclareQueue(scaleUpChannel, "scaleUpEvents")
-	err = scaleUpChannel.Qos(
+	channel := rabbitmq.NewChannel(conn)
+	defer channel.Close()
+	err = channel.Qos(
 		1,
 		0,
 		false,
 	)
 	if err != nil {
-		logger.ErrorLog("Failed to set scale up QoS", "error", err)
+		logger.FatalLog("Failed to set QoS on channel", err)
 	}
 
-	scaleDownChannel := rabbitmq.NewChannel(conn)
-	defer scaleDownChannel.Close()
-	scaleDownQueue := rabbitmq.DeclareQueue(scaleUpChannel, "scaleDownEvents")
-	err = scaleDownChannel.Qos(
-		1,
-		0,
-		false,
-	)
-	if err != nil {
-		logger.ErrorLog("Failed to set scale down QoS", "error", err)
-	}
+	consumers := map[string]<-chan amqp.Delivery{}
+	for _, queueName := range []string{
+		scaler.ScaleUpQueueName,
+		scaler.ScaleDownQueueName,
+		scaler.ReplaceQueueName,
+	} {
+		err = rabbitmq.DeclareQueue(channel, queueName)
+		if err != nil {
+			logger.FatalLog(fmt.Sprintf("Failed to declare %s queue", queueName), err)
+		}
 
-	scaleUpMsgs, err := scaleUpChannel.Consume(
-		scaleUpQueue.Name,
-		"",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		logger.ErrorLog("Failed to register scale up consumer", "error", err)
-	}
-
-	scaleDownMsgs, err := scaleDownChannel.Consume(
-		scaleDownQueue.Name,
-		"",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		logger.ErrorLog("Failed to register scale down consumer", "error", err)
+		consumers[queueName], err = channel.Consume(
+			queueName,
+			"",
+			false,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			logger.FatalLog(fmt.Sprintf("Failed to register %s consumer", queueName), err)
+		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-
 	sigChan := make(chan os.Signal, 1)
 	go func() {
 		<-sigChan
@@ -100,11 +85,14 @@ func main() {
 
 	for {
 		select {
-		case scaleUpMsg := <-scaleUpMsgs:
-			consumeScaleUpMsg(ctx, scaler, scaleUpMsg)
+		case scaleUpMsg := <-consumers[scaler.ScaleUpQueueName]:
+			handleScaleUpMsg(ctx, kpScaler, scaleUpMsg)
 
-		case scaleDownMsg := <-scaleDownMsgs:
-			consumeScaleDownMsg(ctx, scaler, scaleDownMsg)
+		case scaleDownMsg := <-consumers[scaler.ScaleDownQueueName]:
+			handleScaleDownMsg(ctx, kpScaler, scaleDownMsg)
+
+		case replaceMsg := <-consumers[scaler.ReplaceQueueName]:
+			handleReplaceMsg(ctx, kpScaler, replaceMsg)
 
 		case <-ctx.Done():
 			return
@@ -112,7 +100,7 @@ func main() {
 	}
 }
 
-func consumeScaleUpMsg(ctx context.Context, kpScaler scaler.Scaler, scaleUpMsg amqp.Delivery) {
+func handleScaleUpMsg(ctx context.Context, kpScaler scaler.Scaler, scaleUpMsg amqp.Delivery) {
 	var scaleUpEvent *scaler.ScaleEvent
 	json.Unmarshal(scaleUpMsg.Body, &scaleUpEvent)
 
@@ -134,7 +122,7 @@ func consumeScaleUpMsg(ctx context.Context, kpScaler scaler.Scaler, scaleUpMsg a
 	scaleUpMsg.Ack(false)
 }
 
-func consumeScaleDownMsg(ctx context.Context, kpScaler scaler.Scaler, scaleDownMsg amqp.Delivery) {
+func handleScaleDownMsg(ctx context.Context, kpScaler scaler.Scaler, scaleDownMsg amqp.Delivery) {
 	var scaleDownEvent *scaler.ScaleEvent
 	json.Unmarshal(scaleDownMsg.Body, &scaleDownEvent)
 
@@ -156,4 +144,25 @@ func consumeScaleDownMsg(ctx context.Context, kpScaler scaler.Scaler, scaleDownM
 
 	logger.InfoLog(fmt.Sprintf("Deleted %s", scaleDownEvent.NodeName))
 	scaleDownMsg.Ack(false)
+}
+
+func handleReplaceMsg(ctx context.Context, kpScaler scaler.Scaler, replaceMsg amqp.Delivery) {
+	var replaceEvent *scaler.ScaleEvent
+	json.Unmarshal(replaceMsg.Body, &replaceEvent)
+
+	if replaceMsg.Redelivered {
+		logger.InfoLog(fmt.Sprintf("Retrying replace event: %s", replaceEvent.NodeName))
+	} else {
+		logger.InfoLog(fmt.Sprintf("Triggered replace event: %s", replaceEvent.NodeName))
+	}
+
+	newNodeName, err := kpScaler.ReplaceNode(ctx, replaceEvent)
+	if err != nil {
+		logger.WarnLog("Replace event failed", "error", err.Error())
+		kpScaler.DeleteNode(ctx, newNodeName)
+		replaceMsg.Reject(true)
+		return
+	}
+
+	replaceMsg.Ack(false)
 }

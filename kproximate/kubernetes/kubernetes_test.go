@@ -570,3 +570,77 @@ func TestLabelNode(t *testing.T) {
 		t.Errorf("Expected %s label: %s:%s", kpNodeName, "node-role.kubernetes.io/control-plane", "true")
 	}
 }
+
+func TestGetDriftedNodes(t *testing.T) {
+	testTemplateNameLabelKey := "kpNodeTemplateName"
+	previousTemplateName := "previous-kproximate-template"
+	currentTemplateName := "current-kproximate-template"
+	driftedNodeName := "kp-node-67944692-1de7-4bd0-ac8c-de6dc178cb38"
+	k := NewKubernetesMock(
+		&apiv1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "kp-node-163c3d58-4c4d-426d-baef-e0c30ecb5fcd",
+				Labels: map[string]string{
+					testTemplateNameLabelKey: currentTemplateName,
+				},
+			},
+			Status: apiv1.NodeStatus{
+				Conditions: []apiv1.NodeCondition{
+					{
+						Type:   apiv1.NodeReady,
+						Status: "True",
+					},
+				},
+			},
+		},
+		&apiv1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "kp-node-a4f77d63-a944-425d-a980-e7be925b8a6a",
+				Labels: map[string]string{
+					testTemplateNameLabelKey: currentTemplateName,
+				},
+			},
+			Status: apiv1.NodeStatus{
+				Conditions: []apiv1.NodeCondition{
+					{
+						Type:   apiv1.NodeReady,
+						Status: "True",
+					},
+				},
+			},
+		},
+		&apiv1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: driftedNodeName,
+				Labels: map[string]string{
+					testTemplateNameLabelKey: previousTemplateName,
+				},
+			},
+			Status: apiv1.NodeStatus{
+				Conditions: []apiv1.NodeCondition{
+					{
+						Type:   apiv1.NodeReady,
+						Status: "True",
+					},
+				},
+			},
+		},
+	)
+
+	kpNodeNameRegex := *regexp.MustCompile(fmt.Sprintf(`^%s-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}$`, "kp-node"))
+	driftedNodes, err := k.GetDriftedNodes(kpNodeNameRegex, testTemplateNameLabelKey, currentTemplateName)
+	if err != nil {
+		t.Error(err)
+	}
+
+	numDriftedNodes := len(driftedNodes)
+	if numDriftedNodes != 1 {
+		t.Errorf("Expected 1 drifted nodes, got %d", numDriftedNodes)
+	}
+
+	for _, node := range driftedNodes {
+		if node.Name != driftedNodeName {
+			t.Errorf("Expected %s, got %s", driftedNodeName, node.Name)
+		}
+	}
+}

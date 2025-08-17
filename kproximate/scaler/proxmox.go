@@ -18,6 +18,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
+const templateNameLabelKey = "kpNodeTemplateName"
+
 type ProxmoxScaler struct {
 	config     config.KproximateConfig
 	Kubernetes kubernetes.Kubernetes
@@ -64,7 +66,7 @@ func (scaler *ProxmoxScaler) newKpNodeName() string {
 }
 
 func (scaler *ProxmoxScaler) requiredScaleEvents(requiredResources kubernetes.UnschedulableResources, numCurrentEvents int) ([]*ScaleEvent, error) {
-	requiredScaleEvents := []*ScaleEvent{}
+	scaleEvents := []*ScaleEvent{}
 	var numCpuNodesRequired int
 	var numMemoryNodesRequired int
 
@@ -91,51 +93,44 @@ func (scaler *ProxmoxScaler) requiredScaleEvents(requiredResources kubernetes.Un
 	// The largest of the above two node requirements
 	numNodesRequired := int(math.Max(float64(numCpuNodesRequired), float64(numMemoryNodesRequired)))
 
-	for kpNode := 1; kpNode <= numNodesRequired; kpNode++ {
-		newName := scaler.newKpNodeName()
-
+	for range numNodesRequired {
 		scaleEvent := ScaleEvent{
-			ScaleType: 1,
-			NodeName:  newName,
+			NodeName: scaler.newKpNodeName(),
 		}
 
-		requiredScaleEvents = append(requiredScaleEvents, &scaleEvent)
+		scaleEvents = append(scaleEvents, &scaleEvent)
 		logger.DebugLog("Generated scale event", "scaleEvent", fmt.Sprintf("%+v", scaleEvent))
 	}
 
 	// If there are no worker nodes then pods can fail to schedule due to a control-plane taint, trigger a scaling event
-	if len(requiredScaleEvents) == 0 && numCurrentEvents == 0 {
+	if len(scaleEvents) == 0 && numCurrentEvents == 0 {
 		schedulingFailed, err := scaler.Kubernetes.IsUnschedulableDueToControlPlaneTaint()
 		if err != nil {
 			return nil, err
 		}
 
 		if schedulingFailed {
-			newName := scaler.newKpNodeName()
 			scaleEvent := ScaleEvent{
-				ScaleType: 1,
-				NodeName:  newName,
+				NodeName: scaler.newKpNodeName(),
 			}
 
-			requiredScaleEvents = append(requiredScaleEvents, &scaleEvent)
-			logger.DebugLog("Generated scale event due to control=plane taint", "scaleEvent", fmt.Sprintf("%+v", scaleEvent))
+			scaleEvents = append(scaleEvents, &scaleEvent)
+			logger.DebugLog("Generated scale event due to control-plane taint", "scaleEvent", fmt.Sprintf("%+v", scaleEvent))
 		}
 	}
 
-	return requiredScaleEvents, nil
+	return scaleEvents, nil
 }
 
-func (scaler *ProxmoxScaler) RequiredScaleEvents(allScaleEvents int) ([]*ScaleEvent, error) {
-	unschedulableResources, err := scaler.Kubernetes.GetUnschedulableResources(int64(scaler.config.KpNodeCores), scaler.config.KpNodeNameRegex)
-	if err != nil {
-		logger.ErrorLog("Failed to get unschedulable resources:", "error", err)
+func selectMaxAvailableMemHost(hosts []proxmox.HostInformation) proxmox.HostInformation {
+	selectedHostHost := hosts[0]
+	for _, host := range hosts {
+		if (host.Maxmem - host.Mem) > (selectedHostHost.Maxmem - selectedHostHost.Mem) {
+			selectedHostHost = host
+		}
 	}
 
-	if unschedulableResources != (kubernetes.UnschedulableResources{}) {
-		logger.DebugLog("Found unschedulable resources", "resources", fmt.Sprintf("%+v", unschedulableResources))
-	}
-
-	return scaler.requiredScaleEvents(unschedulableResources, allScaleEvents)
+	return selectedHostHost
 }
 
 func selectTargetHost(hosts []proxmox.HostInformation, kpNodes []proxmox.VmInformation, scaleEvents []*ScaleEvent) proxmox.HostInformation {
@@ -161,17 +156,6 @@ skipHost:
 	return selectMaxAvailableMemHost(hosts)
 }
 
-func selectMaxAvailableMemHost(hosts []proxmox.HostInformation) proxmox.HostInformation {
-	selectedHostHost := hosts[0]
-	for _, host := range hosts {
-		if (host.Maxmem - host.Mem) > (selectedHostHost.Maxmem - selectedHostHost.Mem) {
-			selectedHostHost = host
-		}
-	}
-
-	return selectedHostHost
-}
-
 func (scaler *ProxmoxScaler) SelectTargetHosts(scaleEvents []*ScaleEvent) error {
 	hosts, err := scaler.Proxmox.GetClusterStats()
 	if err != nil {
@@ -191,8 +175,47 @@ func (scaler *ProxmoxScaler) SelectTargetHosts(scaleEvents []*ScaleEvent) error 
 	return nil
 }
 
+func (scaler *ProxmoxScaler) AssessNodeDrift() (*ScaleEvent, error) {
+	driftedNodes, err := scaler.Kubernetes.GetDriftedNodes(scaler.config.KpNodeNameRegex, templateNameLabelKey, scaler.config.KpNodeTemplateName)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(driftedNodes) != 0 {
+		scaleEvent := ScaleEvent{
+			NodeName: driftedNodes[0].Name,
+		}
+
+		logger.DebugLog("Generated scale event due to template drift", "scaleEvent", fmt.Sprintf("%+v", scaleEvent))
+		return &scaleEvent, nil
+	}
+
+	return nil, nil
+}
+
+func (scaler *ProxmoxScaler) RequiredScaleUpEvents(allScaleEvents int) ([]*ScaleEvent, error) {
+	unschedulableResources, err := scaler.Kubernetes.GetUnschedulableResources(int64(scaler.config.KpNodeCores), scaler.config.KpNodeNameRegex)
+	if err != nil {
+		logger.ErrorLog("Failed to get unschedulable resources:", "error", err)
+	}
+
+	if unschedulableResources != (kubernetes.UnschedulableResources{}) {
+		logger.DebugLog("Found unschedulable resources", "resources", fmt.Sprintf("%+v", unschedulableResources))
+	}
+
+	scaleEvents, err := scaler.requiredScaleEvents(unschedulableResources, allScaleEvents)
+	if err != nil {
+		logger.FatalLog("Failed to calculate required scale events", err)
+	}
+
+	return scaleEvents, nil
+}
+
 func (scaler *ProxmoxScaler) renderNodeLabels(scaleEvent *ScaleEvent) (map[string]string, error) {
-	labels := map[string]string{}
+	labels := map[string]string{
+		templateNameLabelKey: scaler.config.KpNodeTemplateName,
+	}
+
 	for _, label := range strings.Split(scaler.config.KpNodeLabels, ",") {
 		key := strings.Split(label, "=")[0]
 		value := strings.Split(label, "=")[1]
@@ -357,9 +380,7 @@ func (scaler *ProxmoxScaler) AssessScaleDown() (*ScaleEvent, error) {
 		return nil, nil
 	}
 
-	scaleEvent := ScaleEvent{
-		ScaleType: -1,
-	}
+	scaleEvent := ScaleEvent{}
 
 	err = scaler.selectScaleDownTarget(&scaleEvent)
 	if err != nil {
@@ -385,17 +406,13 @@ func (scaler *ProxmoxScaler) assessScaleDownForResourceType(currentResourceAlloc
 }
 
 func (scaler *ProxmoxScaler) selectScaleDownTarget(scaleEvent *ScaleEvent) error {
-	if scaleEvent.ScaleType != -1 {
-		return fmt.Errorf("expected ScaleEvent ScaleType to be '-1' but got: %d", scaleEvent.ScaleType)
-	}
-
 	kpNodes, err := scaler.Kubernetes.GetKpNodes(scaler.config.KpNodeNameRegex)
 	if err != nil {
 		return err
 	}
 
 	if len(kpNodes) == 0 {
-		return fmt.Errorf("no nodes to scale down, how did we get here?")
+		return fmt.Errorf("failed selecting scale down target, no nodes to select from")
 	}
 
 	allocatedResources, err := scaler.Kubernetes.GetKpNodesAllocatedResources(scaler.config.KpNodeNameRegex)
@@ -405,8 +422,15 @@ func (scaler *ProxmoxScaler) selectScaleDownTarget(scaleEvent *ScaleEvent) error
 
 	nodeLoads := make(map[string]float64)
 
-	// Calculate the combined load on each kpNode
 	for _, node := range kpNodes {
+		// Prioritise nodes where the template name has drifted
+		templateName := node.GetLabels()[templateNameLabelKey]
+		if templateName != scaler.config.KpNodeTemplateName {
+			scaleEvent.NodeName = node.Name
+			return nil
+		}
+
+		// Calculate the combined load on each kpNode
 		nodeLoads[node.Name] =
 			(allocatedResources[node.Name].Cpu / float64(scaler.config.KpNodeCores)) +
 				(allocatedResources[node.Name].Memory / float64(scaler.config.KpNodeMemory))
@@ -491,4 +515,25 @@ func (scaler *ProxmoxScaler) GetResourceStatistics() (ResourceStatistics, error)
 		Allocatable: allocatableResources,
 		Allocated:   allocatedResources,
 	}, nil
+}
+
+func (scaler *ProxmoxScaler) ReplaceNode(ctx context.Context, replaceEvent *ScaleEvent) (string, error) {
+	replacementNodeName := scaler.newKpNodeName()
+	scaleUpEvent := &ScaleEvent{NodeName: replacementNodeName}
+	err := scaler.SelectTargetHosts([]*ScaleEvent{scaleUpEvent})
+	if err != nil {
+		return replacementNodeName, err
+	}
+
+	err = scaler.ScaleUp(ctx, scaleUpEvent)
+	if err != nil {
+		return replacementNodeName, err
+	}
+
+	err = scaler.ScaleDown(ctx, replaceEvent)
+	if err != nil {
+		return replacementNodeName, err
+	}
+
+	return replacementNodeName, nil
 }

@@ -37,6 +37,7 @@ type Kubernetes interface {
 	GetKpNodesAllocatedResources(kpNodeNameRegex regexp.Regexp) (map[string]AllocatedResources, error)
 	CheckForNodeJoin(ctx context.Context, newKpNodeName string)
 	DeleteKpNode(ctx context.Context, kpNodeName string) error
+	GetDriftedNodes(kpNodeNameRegex regexp.Regexp, templateLabelKey string, currentTemplateName string) ([]apiv1.Node, error)
 }
 
 type KubernetesClient struct {
@@ -519,4 +520,26 @@ func (k *KubernetesClient) getMaxAllocatableMemoryForSinglePod(kpNodeNameRegex r
 	}
 
 	return maxAllocatable, nil
+}
+
+func (k *KubernetesClient) GetDriftedNodes(kpNodeNameRegex regexp.Regexp, templateNameLabelKey string, currentTemplateName string) ([]apiv1.Node, error) {
+	driftedNodes := []apiv1.Node{}
+	nodes, err := k.GetKpNodes(kpNodeNameRegex)
+	if err != nil {
+		return driftedNodes, err
+	}
+
+	for _, node := range nodes {
+		templateName, exists := node.GetLabels()[templateNameLabelKey]
+		if !exists {
+			logger.WarnLog("found kpNode without expected kpNodeTemplateName label, treating as drifted", "node", node.Name)
+		}
+
+		if templateName != currentTemplateName {
+			driftedNodes = append(driftedNodes, node)
+		}
+	}
+
+	return driftedNodes, nil
+
 }

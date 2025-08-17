@@ -6,8 +6,14 @@ import (
 	"github.com/jedrw/kproximate/proxmox"
 )
 
+const (
+	ScaleUpQueueName   = "scaleUpEvents"
+	ScaleDownQueueName = "scaleDownEvents"
+	ReplaceQueueName   = "replaceEvents"
+)
+
 type Scaler interface {
-	RequiredScaleEvents(numCurrentEvents int) ([]*ScaleEvent, error)
+	RequiredScaleUpEvents(numCurrentEvents int) ([]*ScaleEvent, error)
 	SelectTargetHosts(scaleEvents []*ScaleEvent) error
 	ScaleUp(ctx context.Context, scaleEvent *ScaleEvent) error
 	NumReadyNodes() (int, error)
@@ -16,10 +22,11 @@ type Scaler interface {
 	ScaleDown(ctx context.Context, scaleEvent *ScaleEvent) error
 	DeleteNode(ctx context.Context, kpNodeName string) error
 	GetResourceStatistics() (ResourceStatistics, error)
+	AssessNodeDrift() (*ScaleEvent, error)
+	ReplaceNode(ctx context.Context, replaceEvent *ScaleEvent) (string, error)
 }
 
 type ScaleEvent struct {
-	ScaleType  int
 	NodeName   string
 	TargetHost proxmox.HostInformation
 }

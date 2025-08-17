@@ -29,7 +29,7 @@ func TestRequiredScaleEventsFor1CPU(t *testing.T) {
 
 	currentEvents := 0
 
-	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
+	requiredScaleEvents, err := s.RequiredScaleUpEvents(currentEvents)
 	if err != nil {
 		t.Error(err)
 	}
@@ -56,7 +56,7 @@ func TestRequiredScaleEventsFor3CPU(t *testing.T) {
 
 	currentEvents := 0
 
-	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
+	requiredScaleEvents, err := s.RequiredScaleUpEvents(currentEvents)
 	if err != nil {
 		t.Error(err)
 	}
@@ -83,7 +83,7 @@ func TestRequiredScaleEventsFor1024MBMemory(t *testing.T) {
 
 	currentEvents := 0
 
-	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
+	requiredScaleEvents, err := s.RequiredScaleUpEvents(currentEvents)
 	if err != nil {
 		t.Error(err)
 	}
@@ -110,7 +110,7 @@ func TestRequiredScaleEventsFor3072MBMemory(t *testing.T) {
 
 	currentEvents := 0
 
-	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
+	requiredScaleEvents, err := s.RequiredScaleUpEvents(currentEvents)
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,7 +137,7 @@ func TestRequiredScaleEventsFor1CPU3072MBMemory(t *testing.T) {
 
 	currentEvents := 0
 
-	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
+	requiredScaleEvents, err := s.RequiredScaleUpEvents(currentEvents)
 	if err != nil {
 		t.Error(err)
 	}
@@ -164,7 +164,7 @@ func TestRequiredScaleEventsFor4CPU4096MBMemory(t *testing.T) {
 
 	currentEvents := 0
 
-	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
+	requiredScaleEvents, err := s.RequiredScaleUpEvents(currentEvents)
 	if err != nil {
 		t.Error(err)
 	}
@@ -191,7 +191,7 @@ func TestRequiredScaleEventsFor1CPU3072MBMemory1QueuedEvent(t *testing.T) {
 
 	currentEvents := 1
 
-	requiredScaleEvents, err := s.RequiredScaleEvents(currentEvents)
+	requiredScaleEvents, err := s.RequiredScaleUpEvents(currentEvents)
 	if err != nil {
 		t.Error(err)
 	}
@@ -254,16 +254,13 @@ func TestSelectTargetHosts(t *testing.T) {
 
 	scaleEvents := []*ScaleEvent{
 		{
-			ScaleType: 1,
-			NodeName:  fmt.Sprintf("%s-%s", s.config.KpNodeNamePrefix, uuid.NewUUID()),
+			NodeName: fmt.Sprintf("%s-%s", s.config.KpNodeNamePrefix, uuid.NewUUID()),
 		},
 		{
-			ScaleType: 1,
-			NodeName:  fmt.Sprintf("%s-%s", s.config.KpNodeNamePrefix, uuid.NewUUID()),
+			NodeName: fmt.Sprintf("%s-%s", s.config.KpNodeNamePrefix, uuid.NewUUID()),
 		},
 		{
-			ScaleType: 1,
-			NodeName:  fmt.Sprintf("%s-%s", s.config.KpNodeNamePrefix, uuid.NewUUID()),
+			NodeName: fmt.Sprintf("%s-%s", s.config.KpNodeNamePrefix, uuid.NewUUID()),
 		},
 	}
 
@@ -325,12 +322,22 @@ func TestAssessScaleDownForResourceTypeUnAcceptable(t *testing.T) {
 }
 
 func TestSelectScaleDownTarget(t *testing.T) {
+	testTemplateName := "test-template-name"
 	node1 := apiv1.Node{}
 	node1.Name = "kp-node-163c3d58-4c4d-426d-baef-e0c30ecb5fcd"
+	node1.Labels = map[string]string{
+		templateNameLabelKey: testTemplateName,
+	}
 	node2 := apiv1.Node{}
 	node2.Name = "kp-node-a4f77d63-a944-425d-a980-e7be925b8a6a"
+	node2.Labels = map[string]string{
+		templateNameLabelKey: testTemplateName,
+	}
 	node3 := apiv1.Node{}
 	node3.Name = "kp-node-67944692-1de7-4bd0-ac8c-de6dc178cb38"
+	node3.Labels = map[string]string{
+		templateNameLabelKey: testTemplateName,
+	}
 
 	scaler := ProxmoxScaler{
 		Kubernetes: &kubernetes.KubernetesMock{
@@ -355,19 +362,71 @@ func TestSelectScaleDownTarget(t *testing.T) {
 			},
 		},
 		config: config.KproximateConfig{
-			KpNodeCores:  2,
-			KpNodeMemory: 1024,
+			KpNodeCores:        2,
+			KpNodeMemory:       1024,
+			KpNodeTemplateName: testTemplateName,
 		},
 	}
 
-	scaleEvent := ScaleEvent{
-		ScaleType: -1,
-	}
+	scaleEvent := ScaleEvent{}
 
 	scaler.selectScaleDownTarget(&scaleEvent)
 
 	if scaleEvent.NodeName != "kp-node-67944692-1de7-4bd0-ac8c-de6dc178cb38" {
 		t.Errorf("Expected kp-node-67944692-1de7-4bd0-ac8c-de6dc178cb38 but got %s", scaleEvent.NodeName)
+	}
+}
+
+func TestSelectScaleDownTargetSelectsDriftedNode(t *testing.T) {
+	testTemplateName := "test-template-name"
+	node1 := apiv1.Node{}
+	node1.Name = "kp-node-163c3d58-4c4d-426d-baef-e0c30ecb5fcd"
+	node1.Labels = map[string]string{
+		templateNameLabelKey: testTemplateName,
+	}
+	node2 := apiv1.Node{}
+	node2.Name = "kp-node-a4f77d63-a944-425d-a980-e7be925b8a6a"
+	node3 := apiv1.Node{}
+	node3.Name = "kp-node-67944692-1de7-4bd0-ac8c-de6dc178cb38"
+	node3.Labels = map[string]string{
+		templateNameLabelKey: testTemplateName,
+	}
+
+	scaler := ProxmoxScaler{
+		Kubernetes: &kubernetes.KubernetesMock{
+			KpNodes: []apiv1.Node{
+				node1,
+				node2,
+				node3,
+			},
+			AllocatedResources: map[string]kubernetes.AllocatedResources{
+				"kp-node-163c3d58-4c4d-426d-baef-e0c30ecb5fcd": {
+					Cpu:    1.0,
+					Memory: 2048.0,
+				},
+				"kp-node-a4f77d63-a944-425d-a980-e7be925b8a6a": {
+					Cpu:    1.0,
+					Memory: 2048.0,
+				},
+				"kp-node-67944692-1de7-4bd0-ac8c-de6dc178cb38": {
+					Cpu:    1.0,
+					Memory: 1048.0,
+				},
+			},
+		},
+		config: config.KproximateConfig{
+			KpNodeCores:        2,
+			KpNodeMemory:       1024,
+			KpNodeTemplateName: testTemplateName,
+		},
+	}
+
+	scaleEvent := ScaleEvent{}
+
+	scaler.selectScaleDownTarget(&scaleEvent)
+
+	if scaleEvent.NodeName != "kp-node-a4f77d63-a944-425d-a980-e7be925b8a6a" {
+		t.Errorf("Expected kp-node-a4f77d63-a944-425d-a980-e7be925b8a6a but got %s", scaleEvent.NodeName)
 	}
 }
 

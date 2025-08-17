@@ -70,3 +70,7 @@ func (m *KubernetesMock) DeleteKpNode(ctx context.Context, kpNodeName string) er
 func (k *KubernetesMock) LabelKpNode(kpNodeName string, newKpNodeLabels map[string]string) error {
 	return nil
 }
+
+func (k *KubernetesMock) GetDriftedNodes(kpNodeNameRegex regexp.Regexp, templateNameLabelKey string, currentTemplateName string) ([]apiv1.Node, error) {
+	return []apiv1.Node{}, nil
+}
