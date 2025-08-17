@@ -25,8 +25,8 @@ func main() {
 	}
 
 	logger.ConfigureLogger("controller", kpConfig.Debug)
-
-	kpScaler, err := scaler.NewProxmoxScaler(kpConfig)
+	ctx, cancel := context.WithCancel(context.Background())
+	kpScaler, err := scaler.NewProxmoxScaler(ctx, kpConfig)
 	if err != nil {
 		logger.FatalLog("Failed to initialise scaler", err)
 	}
@@ -48,7 +48,6 @@ func main() {
 		}
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	sigChan := make(chan os.Signal, 1)
 	go func() {
 		<-sigChan
@@ -111,7 +110,7 @@ func assessScaleUp(
 			numScaleEvents := min(maxScaleEvents, len(scaleUpEvents))
 			scaleUpEvents = scaleUpEvents[0:numScaleEvents]
 			logger.DebugLog("Selecting target hosts")
-			err = kpScaler.SelectTargetHosts(scaleUpEvents)
+			err = kpScaler.SelectTargetHosts(ctx, scaleUpEvents)
 			if err != nil {
 				logger.FatalLog("Failed to select target host", err)
 			}

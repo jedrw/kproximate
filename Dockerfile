@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.18 AS build
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine3.22 AS build
 RUN apk add upx
 WORKDIR $GOPATH/src/kproximate
 COPY . .

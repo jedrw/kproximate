@@ -17,23 +17,23 @@ type ProxmoxMock struct {
 	QemuExecJoinStatus QemuExecStatus
 }
 
-func (p *ProxmoxMock) GetClusterStats() ([]HostInformation, error) {
+func (p *ProxmoxMock) GetClusterStats(ctx context.Context) ([]HostInformation, error) {
 	return p.ClusterStats, nil
 }
 
-func (p *ProxmoxMock) GetRunningKpNodes(kpNodeName regexp.Regexp) ([]VmInformation, error) {
+func (p *ProxmoxMock) GetRunningKpNodes(ctx context.Context, kpNodeName regexp.Regexp) ([]VmInformation, error) {
 	return p.RunningKpNodes, nil
 }
 
-func (p *ProxmoxMock) GetAllKpNodes(kpNodeName regexp.Regexp) ([]VmInformation, error) {
+func (p *ProxmoxMock) GetAllKpNodes(ctx context.Context, kpNodeName regexp.Regexp) ([]VmInformation, error) {
 	return p.KpNodes, nil
 }
 
-func (p *ProxmoxMock) GetKpNode(name string, kpNodeName regexp.Regexp) (VmInformation, error) {
+func (p *ProxmoxMock) GetKpNode(ctx context.Context, name string, kpNodeName regexp.Regexp) (VmInformation, error) {
 	return p.KpNode, nil
 }
 
-func (p *ProxmoxMock) GetKpNodeTemplateRef(kpNodeTemplateName string, LocalTemplateStorage bool, cloneTargetNode string) (*proxmox.VmRef, error) {
+func (p *ProxmoxMock) GetKpNodeTemplateRef(ctx context.Context, kpNodeTemplateName string, LocalTemplateStorage bool, cloneTargetNode string) (*proxmox.VmRef, error) {
 	return &p.KpNodeTemplateRef, nil
 }
 
@@ -41,18 +41,22 @@ func (p *ProxmoxMock) NewKpNode(ctx context.Context, newKpNodeName string, targe
 	return nil
 }
 
-func (p *ProxmoxMock) DeleteKpNode(name string, kpNodeName regexp.Regexp) error {
+func (p *ProxmoxMock) DeleteKpNode(ctx context.Context, name string, kpNodeName regexp.Regexp) error {
 	return nil
 }
 
-func (p *ProxmoxMock) QemuExecJoin(nodeName string, joinCommand string) (int, error) {
+func (p *ProxmoxMock) QemuExecJoin(ctx context.Context, nodeName string, joinCommand string) (int, error) {
 	return p.JoinExecPid, nil
 }
 
-func (p *ProxmoxMock) GetQemuExecJoinStatus(nodeName string, pid int) (QemuExecStatus, error) {
+func (p *ProxmoxMock) GetQemuExecJoinStatus(ctx context.Context, nodeName string, pid int) (QemuExecStatus, error) {
 	return p.QemuExecJoinStatus, nil
 }
 
 func (p *ProxmoxMock) CheckNodeReady(ctx context.Context, nodeName string) error {
 	return nil
+}
+
+func GetNextID(ctx context.Context, currentID *proxmox.GuestID) (nextID proxmox.GuestID, err error) {
+	return proxmox.GuestID(1), nil
 }

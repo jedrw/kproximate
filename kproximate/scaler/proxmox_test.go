@@ -264,7 +264,7 @@ func TestSelectTargetHosts(t *testing.T) {
 		},
 	}
 
-	err := s.SelectTargetHosts(scaleEvents)
+	err := s.SelectTargetHosts(t.Context(), scaleEvents)
 	if err != nil {
 		t.Error(err)
 	}
@@ -544,7 +544,7 @@ func TestJoinByQemuExecSuccess(t *testing.T) {
 
 	kpNodeName := "kp-node-96f665dd-21c3-4ce1-a1e4-c7717c5338a3"
 
-	err := s.joinByQemuExec(kpNodeName)
+	err := s.joinByQemuExec(t.Context(), kpNodeName)
 
 	if err != nil {
 		t.Errorf("Expected nil, Got %s", err)
@@ -568,7 +568,7 @@ func TestJoinByQemuExecFail(t *testing.T) {
 
 	kpNodeName := "kp-node-96f665dd-21c3-4ce1-a1e4-c7717c5338a3"
 
-	err := s.joinByQemuExec(kpNodeName)
+	err := s.joinByQemuExec(t.Context(), kpNodeName)
 
 	if err == nil {
 		t.Error("Expected the join command to fail")

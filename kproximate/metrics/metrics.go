@@ -68,7 +68,7 @@ func recordMetrics(
 		default:
 			time.Sleep(5 * time.Second)
 
-			numKpNodes, _ := scaler.NumNodes()
+			numKpNodes, _ := scaler.NumNodes(ctx)
 			totalKpNodes.Set(float64(numKpNodes))
 
 			runningNodes, _ := scaler.NumReadyNodes()

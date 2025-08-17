@@ -26,7 +26,7 @@ func TestGetAllKpNodes(t *testing.T) {
 	})
 
 	kpNodeNameRegex := *regexp.MustCompile(fmt.Sprintf(`^%s-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}$`, "kp-node"))
-	kpNodes, err := p.GetAllKpNodes(kpNodeNameRegex)
+	kpNodes, err := p.GetAllKpNodes(t.Context(), kpNodeNameRegex)
 	if err != nil {
 		t.Error(err)
 	}
@@ -59,7 +59,7 @@ func TestGetRunningKpNodes(t *testing.T) {
 	})
 
 	kpNodeNameRegex := *regexp.MustCompile(fmt.Sprintf(`^%s-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}$`, "kp-node"))
-	kpNodes, err := p.GetRunningKpNodes(kpNodeNameRegex)
+	kpNodes, err := p.GetRunningKpNodes(t.Context(), kpNodeNameRegex)
 	if err != nil {
 		t.Error(err)
 	}
@@ -86,7 +86,7 @@ func TestGetKpNode(t *testing.T) {
 	})
 
 	kpNodeNameRegex := *regexp.MustCompile(fmt.Sprintf(`^%s-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}$`, "kp-node"))
-	kpNode, err := p.GetKpNode("kp-node-163c3d58-4c4d-426d-baef-e0c30ecb5fcd", kpNodeNameRegex)
+	kpNode, err := p.GetKpNode(t.Context(), "kp-node-163c3d58-4c4d-426d-baef-e0c30ecb5fcd", kpNodeNameRegex)
 	if err != nil {
 		t.Error(err)
 	}
@@ -107,8 +107,8 @@ func TestGetKpNodeTemplateRefReturnsCorrectTemplateRef(t *testing.T) {
 	unwantedVmRef.SetNode("the-wrong-template")
 
 	p := NewProxmoxMock(ProxmoxClientMock{
-		VmRefsByName: map[string][]*proxmox.VmRef{
-			kproximateTemplateName: {
+		VmRefsByName: map[proxmox.GuestName][]*proxmox.VmRef{
+			proxmox.GuestName(kproximateTemplateName): {
 				expectedVmRef,
 			},
 			"not-a-kproximate-template": {
@@ -117,7 +117,7 @@ func TestGetKpNodeTemplateRefReturnsCorrectTemplateRef(t *testing.T) {
 		},
 	})
 
-	vmRef, err := p.GetKpNodeTemplateRef(kproximateTemplateName, false, cloneTargetNode)
+	vmRef, err := p.GetKpNodeTemplateRef(t.Context(), kproximateTemplateName, false, cloneTargetNode)
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,20 +137,20 @@ func TestGetKpNodeTemplateRefReturnsCorrectTemplateRefForLocalStorage(t *testing
 	vmRef2.SetNode(cloneTargetNode)
 
 	p := NewProxmoxMock(ProxmoxClientMock{
-		VmRefsByName: map[string][]*proxmox.VmRef{
-			kproximateTemplateName: {
+		VmRefsByName: map[proxmox.GuestName][]*proxmox.VmRef{
+			proxmox.GuestName(kproximateTemplateName): {
 				vmRef1,
 				vmRef2,
 			},
 		},
 	})
 
-	vmRef, err := p.GetKpNodeTemplateRef(kproximateTemplateName, true, cloneTargetNode)
+	vmRef, err := p.GetKpNodeTemplateRef(t.Context(), kproximateTemplateName, true, cloneTargetNode)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if vmRef.Node() != cloneTargetNode {
+	if vmRef.Node().String() != cloneTargetNode {
 		t.Errorf("Expected %s, got %s", cloneTargetNode, vmRef.Node())
 	}
 }

@@ -23,8 +23,8 @@ func main() {
 	}
 
 	logger.ConfigureLogger("worker", kpConfig.Debug)
-
-	kpScaler, err := scaler.NewProxmoxScaler(kpConfig)
+	ctx, cancel := context.WithCancel(context.Background())
+	kpScaler, err := scaler.NewProxmoxScaler(ctx, kpConfig)
 	if err != nil {
 		logger.ErrorLog("Failed to initialise scaler", "error", err)
 	}
@@ -73,7 +73,6 @@ func main() {
 		}
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	sigChan := make(chan os.Signal, 1)
 	go func() {
 		<-sigChan

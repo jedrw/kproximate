@@ -55,32 +55,32 @@ type QemuExecStatus struct {
 }
 
 type Proxmox interface {
-	GetClusterStats() ([]HostInformation, error)
-	GetRunningKpNodes(regexp.Regexp) ([]VmInformation, error)
-	GetAllKpNodes(regexp.Regexp) ([]VmInformation, error)
-	GetKpNode(name string, kpNodeNameRegex regexp.Regexp) (VmInformation, error)
-	GetKpNodeTemplateRef(kpNodeTemplateName string, localTemplateStorage bool, cloneTargetNode string) (*proxmox.VmRef, error)
+	GetClusterStats(ctx context.Context) ([]HostInformation, error)
+	GetRunningKpNodes(ctx context.Context, kpNodeNameRegex regexp.Regexp) ([]VmInformation, error)
+	GetAllKpNodes(ctx context.Context, kpNodeNameRegex regexp.Regexp) ([]VmInformation, error)
+	GetKpNode(ctx context.Context, name string, kpNodeNameRegex regexp.Regexp) (VmInformation, error)
+	GetKpNodeTemplateRef(ctx context.Context, kpNodeTemplateName string, localTemplateStorage bool, cloneTargetNode string) (*proxmox.VmRef, error)
 	NewKpNode(ctx context.Context, newKpNodeName string, targetNode string, kpNodeParams map[string]interface{}, usingLocalStorage bool, kpNodeTemplateName string, kpJoinCommand string) error
-	DeleteKpNode(name string, kpnodeName regexp.Regexp) error
-	QemuExecJoin(nodeName string, joinCommand string) (int, error)
-	GetQemuExecJoinStatus(nodeName string, pid int) (QemuExecStatus, error)
+	DeleteKpNode(ctx context.Context, name string, kpnodeName regexp.Regexp) error
+	QemuExecJoin(ctx context.Context, nodeName string, joinCommand string) (int, error)
+	GetQemuExecJoinStatus(ctx context.Context, nodeName string, pid int) (QemuExecStatus, error)
 	CheckNodeReady(ctx context.Context, nodeName string) error
 }
 
 type ProxmoxClientInterface interface {
-	CloneQemuVm(vmr *proxmox.VmRef, vmParams map[string]interface{}) (exitStatus string, err error)
-	DeleteVm(vmr *proxmox.VmRef) (exitStatus string, err error)
-	GetExecStatus(vmr *proxmox.VmRef, pid string) (status map[string]interface{}, err error)
-	GetNextID(currentID int) (nextID int, err error)
-	GetResourceList(resourceType string) (list []interface{}, err error)
-	GetVmList() (map[string]interface{}, error)
-	GetVmRefByName(vmName string) (vmr *proxmox.VmRef, err error)
-	GetVmRefsByName(vmName string) (vmrs []*proxmox.VmRef, err error)
-	QemuAgentExec(vmr *proxmox.VmRef, params map[string]interface{}) (result map[string]interface{}, err error)
-	QemuAgentPing(vmr *proxmox.VmRef) (pingRes map[string]interface{}, err error)
+	CloneQemuVm(ctx context.Context, vmr *proxmox.VmRef, vmParams map[string]interface{}) (exitStatus string, err error)
+	DeleteVm(ctx context.Context, vmr *proxmox.VmRef) (exitStatus string, err error)
+	GetExecStatus(ctx context.Context, vmr *proxmox.VmRef, pid string) (status map[string]interface{}, err error)
+	GetNextID(ctx context.Context, currentID *proxmox.GuestID) (nextID proxmox.GuestID, err error)
+	GetResourceList(ctx context.Context, resourceType string) (list []interface{}, err error)
+	GetVmList(ctx context.Context) (map[string]interface{}, error)
+	GetVmRefByName(ctx context.Context, vmName proxmox.GuestName) (vmr *proxmox.VmRef, err error)
+	GetVmRefsByName(ctx context.Context, vmName proxmox.GuestName) (vmrs []*proxmox.VmRef, err error)
+	QemuAgentExec(ctx context.Context, vmr *proxmox.VmRef, params map[string]interface{}) (result map[string]interface{}, err error)
+	QemuAgentPing(ctx context.Context, vmr *proxmox.VmRef) (pingRes map[string]interface{}, err error)
 	SetVmConfig(vmr *proxmox.VmRef, params map[string]interface{}) (exitStatus interface{}, err error)
-	StartVm(vmr *proxmox.VmRef) (exitStatus string, err error)
-	StopVm(vmr *proxmox.VmRef) (exitStatus string, err error)
+	StartVm(ctx context.Context, vmr *proxmox.VmRef) (exitStatus string, err error)
+	StopVm(ctx context.Context, vmr *proxmox.VmRef) (exitStatus string, err error)
 }
 
 type ProxmoxClient struct {
@@ -91,7 +91,7 @@ func userRequiresAPIToken(pmUser string) bool {
 	return userRequiresTokenRegex.MatchString(pmUser)
 }
 
-func NewProxmoxClient(pm_url string, allowInsecure bool, pmUser string, pmToken string, pmPassword string, debug bool) (ProxmoxClient, error) {
+func NewProxmoxClient(ctx context.Context, pm_url string, allowInsecure bool, pmUser string, pmToken string, pmPassword string, debug bool) (ProxmoxClient, error) {
 	tlsconf := &tls.Config{InsecureSkipVerify: allowInsecure}
 	newClient, err := proxmox.NewClient(pm_url, nil, "", tlsconf, "", 300)
 	if err != nil {
@@ -101,7 +101,7 @@ func NewProxmoxClient(pm_url string, allowInsecure bool, pmUser string, pmToken 
 	if userRequiresAPIToken(pmUser) {
 		newClient.SetAPIToken(pmUser, pmToken)
 	} else {
-		err = newClient.Login(pmUser, pmPassword, "")
+		err = newClient.Login(ctx, pmUser, pmPassword, "")
 		if err != nil {
 			return ProxmoxClient{}, err
 		}
@@ -116,8 +116,8 @@ func NewProxmoxClient(pm_url string, allowInsecure bool, pmUser string, pmToken 
 	return proxmox, nil
 }
 
-func (p *ProxmoxClient) GetClusterStats() ([]HostInformation, error) {
-	hostList, err := p.client.GetResourceList("node")
+func (p *ProxmoxClient) GetClusterStats(ctx context.Context) ([]HostInformation, error) {
+	hostList, err := p.client.GetResourceList(ctx, "node")
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +132,8 @@ func (p *ProxmoxClient) GetClusterStats() ([]HostInformation, error) {
 	return pHosts, nil
 }
 
-func (p *ProxmoxClient) GetAllKpNodes(kpNodeNameRegex regexp.Regexp) ([]VmInformation, error) {
-	result, err := p.client.GetVmList()
+func (p *ProxmoxClient) GetAllKpNodes(ctx context.Context, kpNodeNameRegex regexp.Regexp) ([]VmInformation, error) {
+	result, err := p.client.GetVmList(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -156,8 +156,8 @@ func (p *ProxmoxClient) GetAllKpNodes(kpNodeNameRegex regexp.Regexp) ([]VmInform
 	return kpNodes, err
 }
 
-func (p *ProxmoxClient) GetRunningKpNodes(kpNodeNameRegex regexp.Regexp) ([]VmInformation, error) {
-	kpNodes, err := p.GetAllKpNodes(kpNodeNameRegex)
+func (p *ProxmoxClient) GetRunningKpNodes(ctx context.Context, kpNodeNameRegex regexp.Regexp) ([]VmInformation, error) {
+	kpNodes, err := p.GetAllKpNodes(ctx, kpNodeNameRegex)
 	if err != nil {
 		return nil, err
 	}
@@ -173,8 +173,8 @@ func (p *ProxmoxClient) GetRunningKpNodes(kpNodeNameRegex regexp.Regexp) ([]VmIn
 	return runningKpNodes, nil
 }
 
-func (p *ProxmoxClient) GetKpNode(kpNodeName string, kpNodeNameRegex regexp.Regexp) (VmInformation, error) {
-	kpNodes, err := p.GetAllKpNodes(kpNodeNameRegex)
+func (p *ProxmoxClient) GetKpNode(ctx context.Context, kpNodeName string, kpNodeNameRegex regexp.Regexp) (VmInformation, error) {
+	kpNodes, err := p.GetAllKpNodes(ctx, kpNodeNameRegex)
 	if err != nil {
 		return VmInformation{}, err
 	}
@@ -188,15 +188,15 @@ func (p *ProxmoxClient) GetKpNode(kpNodeName string, kpNodeNameRegex regexp.Rege
 	return VmInformation{}, err
 }
 
-func (p *ProxmoxClient) GetKpNodeTemplateRef(kpNodeTemplateName string, localTemplateStorage bool, cloneTargetNode string) (*proxmox.VmRef, error) {
-	vmRefs, err := p.client.GetVmRefsByName(kpNodeTemplateName)
+func (p *ProxmoxClient) GetKpNodeTemplateRef(ctx context.Context, kpNodeTemplateName string, localTemplateStorage bool, cloneTargetNode string) (*proxmox.VmRef, error) {
+	vmRefs, err := p.client.GetVmRefsByName(ctx, proxmox.GuestName(kpNodeTemplateName))
 	if err != nil {
 		return nil, err
 	}
 
 	if localTemplateStorage {
 		for _, vmRef := range vmRefs {
-			if vmRef.Node() == cloneTargetNode {
+			if vmRef.Node().String() == cloneTargetNode {
 				return vmRef, nil
 			}
 		}
@@ -205,6 +205,20 @@ func (p *ProxmoxClient) GetKpNodeTemplateRef(kpNodeTemplateName string, localTem
 	}
 
 	return nil, fmt.Errorf("could not find template: %s", kpNodeTemplateName)
+}
+
+func getNextID(ctx context.Context, proxmoxClient *ProxmoxClient, currentID *proxmox.GuestID) (proxmox.GuestID, error) {
+	nextID, err := proxmoxClient.client.GetNextID(ctx, currentID)
+	if err != nil {
+		if err.Error() == "400 Parameter verification failed." {
+			*currentID++
+			return getNextID(ctx, proxmoxClient, currentID)
+		}
+
+		return 0, err
+	}
+
+	return nextID, nil
 }
 
 func (p *ProxmoxClient) NewKpNode(
@@ -216,12 +230,13 @@ func (p *ProxmoxClient) NewKpNode(
 	kpNodeTemplateName string,
 	kpJoinCommand string,
 ) error {
-	kpNodeTemplate, err := p.GetKpNodeTemplateRef(kpNodeTemplateName, localTemplateStorage, targetNode)
+	kpNodeTemplate, err := p.GetKpNodeTemplateRef(ctx, kpNodeTemplateName, localTemplateStorage, targetNode)
 	if err != nil {
 		return err
 	}
 
-	nextID, err := p.client.GetNextID(kpNodeTemplate.VmId())
+	currentID := kpNodeTemplate.VmId()
+	nextID, err := getNextID(ctx, p, &currentID)
 	if err != nil {
 		return err
 	}
@@ -233,13 +248,13 @@ func (p *ProxmoxClient) NewKpNode(
 		"vmid":   kpNodeTemplate.VmId(),
 	}
 
-	_, err = p.client.CloneQemuVm(kpNodeTemplate, cloneParams)
+	_, err = p.client.CloneQemuVm(ctx, kpNodeTemplate, cloneParams)
 	if err != nil {
 		return err
 	}
 
 	for {
-		newVmRef, err := p.client.GetVmRefByName(newKpNodeName)
+		newVmRef, err := p.client.GetVmRefByName(ctx, proxmox.GuestName(newKpNodeName))
 		if err != nil {
 			time.Sleep(time.Second * 1)
 			continue
@@ -250,7 +265,7 @@ func (p *ProxmoxClient) NewKpNode(
 			return err
 		}
 
-		_, err = p.client.StartVm(newVmRef)
+		_, err = p.client.StartVm(ctx, newVmRef)
 		if err != nil {
 			return err
 		}
@@ -261,23 +276,23 @@ func (p *ProxmoxClient) NewKpNode(
 }
 
 func (p *ProxmoxClient) CheckNodeReady(ctx context.Context, nodeName string) error {
-	vmRef, err := p.client.GetVmRefByName(nodeName)
+	vmRef, err := p.client.GetVmRefByName(ctx, proxmox.GuestName(nodeName))
 	if err != nil {
 		return err
 	}
 
-	_, pingErr := p.client.QemuAgentPing(vmRef)
+	_, pingErr := p.client.QemuAgentPing(ctx, vmRef)
 
 	for pingErr != nil {
-		_, pingErr = p.client.QemuAgentPing(vmRef)
+		_, pingErr = p.client.QemuAgentPing(ctx, vmRef)
 		time.Sleep(time.Second * 1)
 	}
 
 	return nil
 }
 
-func (p *ProxmoxClient) QemuExecJoin(kpNodeName string, joinCommand string) (int, error) {
-	vmRef, err := p.client.GetVmRefByName(kpNodeName)
+func (p *ProxmoxClient) QemuExecJoin(ctx context.Context, kpNodeName string, joinCommand string) (int, error) {
+	vmRef, err := p.client.GetVmRefByName(ctx, proxmox.GuestName(kpNodeName))
 	if err != nil {
 		return 0, err
 	}
@@ -286,7 +301,7 @@ func (p *ProxmoxClient) QemuExecJoin(kpNodeName string, joinCommand string) (int
 		"command": []string{"bash", "-c", joinCommand},
 	}
 
-	result, err := p.client.QemuAgentExec(vmRef, params)
+	result, err := p.client.QemuAgentExec(ctx, vmRef, params)
 	if err != nil {
 		return 0, err
 	}
@@ -301,13 +316,13 @@ func (p *ProxmoxClient) QemuExecJoin(kpNodeName string, joinCommand string) (int
 	return response.Pid, nil
 }
 
-func (p *ProxmoxClient) GetQemuExecJoinStatus(kpNodeName string, pid int) (QemuExecStatus, error) {
-	vmRef, err := p.client.GetVmRefByName(kpNodeName)
+func (p *ProxmoxClient) GetQemuExecJoinStatus(ctx context.Context, kpNodeName string, pid int) (QemuExecStatus, error) {
+	vmRef, err := p.client.GetVmRefByName(ctx, proxmox.GuestName(kpNodeName))
 	if err != nil {
 		return QemuExecStatus{}, err
 	}
 
-	execStatus, err := p.client.GetExecStatus(vmRef, fmt.Sprintf("%d", pid))
+	execStatus, err := p.client.GetExecStatus(ctx, vmRef, fmt.Sprintf("%d", pid))
 	if err != nil {
 		return QemuExecStatus{}, err
 	}
@@ -322,18 +337,18 @@ func (p *ProxmoxClient) GetQemuExecJoinStatus(kpNodeName string, pid int) (QemuE
 	return status, nil
 }
 
-func (p *ProxmoxClient) DeleteKpNode(name string, kpNodeName regexp.Regexp) error {
-	kpNode, err := p.GetKpNode(name, kpNodeName)
+func (p *ProxmoxClient) DeleteKpNode(ctx context.Context, name string, kpNodeName regexp.Regexp) error {
+	kpNode, err := p.GetKpNode(ctx, name, kpNodeName)
 	if err != nil {
 		return err
 	}
 
-	vmRef, err := p.client.GetVmRefByName(kpNode.Name)
+	vmRef, err := p.client.GetVmRefByName(ctx, proxmox.GuestName(kpNode.Name))
 	if err != nil {
 		return err
 	}
 
-	exitStatus, err := p.client.StopVm(vmRef)
+	exitStatus, err := p.client.StopVm(ctx, vmRef)
 	if err != nil {
 		return err
 	}
@@ -343,7 +358,7 @@ func (p *ProxmoxClient) DeleteKpNode(name string, kpNodeName regexp.Regexp) erro
 		return err
 	}
 
-	exitStatus, err = p.client.DeleteVm(vmRef)
+	exitStatus, err = p.client.DeleteVm(ctx, vmRef)
 	if err != nil {
 		return err
 	}

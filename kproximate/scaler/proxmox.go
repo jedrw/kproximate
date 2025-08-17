@@ -26,13 +26,13 @@ type ProxmoxScaler struct {
 	Proxmox    proxmox.Proxmox
 }
 
-func NewProxmoxScaler(config config.KproximateConfig) (Scaler, error) {
+func NewProxmoxScaler(ctx context.Context, config config.KproximateConfig) (Scaler, error) {
 	kubernetes, err := kubernetes.NewKubernetesClient()
 	if err != nil {
 		return nil, err
 	}
 
-	proxmox, err := proxmox.NewProxmoxClient(config.PmUrl, config.PmAllowInsecure, config.PmUserID, config.PmToken, config.PmPassword, config.PmDebug)
+	proxmox, err := proxmox.NewProxmoxClient(ctx, config.PmUrl, config.PmAllowInsecure, config.PmUserID, config.PmToken, config.PmPassword, config.PmDebug)
 	if err != nil {
 		return nil, err
 	}
@@ -156,13 +156,13 @@ skipHost:
 	return selectMaxAvailableMemHost(hosts)
 }
 
-func (scaler *ProxmoxScaler) SelectTargetHosts(scaleEvents []*ScaleEvent) error {
-	hosts, err := scaler.Proxmox.GetClusterStats()
+func (scaler *ProxmoxScaler) SelectTargetHosts(ctx context.Context, scaleEvents []*ScaleEvent) error {
+	hosts, err := scaler.Proxmox.GetClusterStats(ctx)
 	if err != nil {
 		return err
 	}
 
-	kpNodes, err := scaler.Proxmox.GetRunningKpNodes(scaler.config.KpNodeNameRegex)
+	kpNodes, err := scaler.Proxmox.GetRunningKpNodes(ctx, scaler.config.KpNodeNameRegex)
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func (scaler *ProxmoxScaler) ScaleUp(ctx context.Context, scaleEvent *ScaleEvent
 			return err
 		}
 
-		err = scaler.joinByQemuExec(scaleEvent.NodeName)
+		err = scaler.joinByQemuExec(ctx, scaleEvent.NodeName)
 		if err != nil {
 			return err
 		}
@@ -320,9 +320,9 @@ func (scaler *ProxmoxScaler) ScaleUp(ctx context.Context, scaleEvent *ScaleEvent
 	return nil
 }
 
-func (scaler *ProxmoxScaler) joinByQemuExec(nodeName string) error {
+func (scaler *ProxmoxScaler) joinByQemuExec(ctx context.Context, nodeName string) error {
 	logger.InfoLog(fmt.Sprintf("Executing join command on %s", nodeName))
-	joinExecPid, err := scaler.Proxmox.QemuExecJoin(nodeName, scaler.config.KpJoinCommand)
+	joinExecPid, err := scaler.Proxmox.QemuExecJoin(ctx, nodeName, scaler.config.KpJoinCommand)
 	if err != nil {
 		return err
 	}
@@ -330,7 +330,7 @@ func (scaler *ProxmoxScaler) joinByQemuExec(nodeName string) error {
 	var status proxmox.QemuExecStatus
 
 	for {
-		status, err = scaler.Proxmox.GetQemuExecJoinStatus(nodeName, joinExecPid)
+		status, err = scaler.Proxmox.GetQemuExecJoinStatus(ctx, nodeName, joinExecPid)
 		if err != nil {
 			return err
 		}
@@ -448,8 +448,8 @@ func (scaler *ProxmoxScaler) selectScaleDownTarget(scaleEvent *ScaleEvent) error
 	return nil
 }
 
-func (scaler *ProxmoxScaler) NumNodes() (int, error) {
-	nodes, err := scaler.Proxmox.GetAllKpNodes(scaler.config.KpNodeNameRegex)
+func (scaler *ProxmoxScaler) NumNodes(ctx context.Context) (int, error) {
+	nodes, err := scaler.Proxmox.GetAllKpNodes(ctx, scaler.config.KpNodeNameRegex)
 	return len(nodes), err
 }
 
@@ -459,7 +459,7 @@ func (scaler *ProxmoxScaler) ScaleDown(ctx context.Context, scaleEvent *ScaleEve
 		return err
 	}
 
-	return scaler.Proxmox.DeleteKpNode(scaleEvent.NodeName, scaler.config.KpNodeNameRegex)
+	return scaler.Proxmox.DeleteKpNode(ctx, scaleEvent.NodeName, scaler.config.KpNodeNameRegex)
 }
 
 // This function is only used when it is unclear whether a node has joined the kubernetes cluster
@@ -467,7 +467,7 @@ func (scaler *ProxmoxScaler) ScaleDown(ctx context.Context, scaleEvent *ScaleEve
 func (scaler *ProxmoxScaler) DeleteNode(ctx context.Context, kpNodeName string) error {
 	_ = scaler.Kubernetes.DeleteKpNode(ctx, kpNodeName)
 
-	return scaler.Proxmox.DeleteKpNode(kpNodeName, scaler.config.KpNodeNameRegex)
+	return scaler.Proxmox.DeleteKpNode(ctx, kpNodeName, scaler.config.KpNodeNameRegex)
 }
 
 func (scaler *ProxmoxScaler) GetAllocatableResources() (AllocatableResources, error) {
@@ -520,7 +520,7 @@ func (scaler *ProxmoxScaler) GetResourceStatistics() (ResourceStatistics, error)
 func (scaler *ProxmoxScaler) ReplaceNode(ctx context.Context, replaceEvent *ScaleEvent) (string, error) {
 	replacementNodeName := scaler.newKpNodeName()
 	scaleUpEvent := &ScaleEvent{NodeName: replacementNodeName}
-	err := scaler.SelectTargetHosts([]*ScaleEvent{scaleUpEvent})
+	err := scaler.SelectTargetHosts(ctx, []*ScaleEvent{scaleUpEvent})
 	if err != nil {
 		return replacementNodeName, err
 	}

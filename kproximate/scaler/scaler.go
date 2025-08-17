@@ -14,10 +14,10 @@ const (
 
 type Scaler interface {
 	RequiredScaleUpEvents(numCurrentEvents int) ([]*ScaleEvent, error)
-	SelectTargetHosts(scaleEvents []*ScaleEvent) error
+	SelectTargetHosts(ctx context.Context, scaleEvents []*ScaleEvent) error
 	ScaleUp(ctx context.Context, scaleEvent *ScaleEvent) error
 	NumReadyNodes() (int, error)
-	NumNodes() (int, error)
+	NumNodes(ctx context.Context) (int, error)
 	AssessScaleDown() (*ScaleEvent, error)
 	ScaleDown(ctx context.Context, scaleEvent *ScaleEvent) error
 	DeleteNode(ctx context.Context, kpNodeName string) error
