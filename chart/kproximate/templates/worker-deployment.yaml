@@ -83,7 +83,6 @@ spec:
         - /bin/sh
         - -c
         - >
-          set -x;
           while [ $(curl -sw '%{http_code}' --user ${rabbitMQUser}:${rabbitMQPassword} "http://${rabbitMQHost}:15672/api/health/checks/local-alarms" -o /dev/null) -ne 200 ]; do
             sleep 5;
           done
