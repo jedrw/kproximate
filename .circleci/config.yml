@@ -159,6 +159,11 @@ workflows:
           matrix:
             parameters:
               component: ["controller", "worker"]
+          filters:
+            branches:
+              only: develop
+            tags:
+              only: /\d+\.\d+\.\d+/
       - publish_helm_chart:
           context:
             - github
