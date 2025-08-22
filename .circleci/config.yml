@@ -30,6 +30,7 @@ jobs:
     working_directory: ~/project/kproximate
     docker:
       - image: cimg/go:1.25
+    resource_class: large
     steps:
       - checkout:
           path: ~/project
@@ -47,7 +48,37 @@ jobs:
       - run:
           name: Run tests
           command: go test ./...
-  build_image:
+  build_amd64_images:
+    docker:
+      - image: cimg/base:current  
+    resource_class: large
+    parameters:
+      component:
+        type: string
+    steps:
+      - setup_remote_docker
+      - checkout
+      - login_to_ghcr
+      - generate_version
+      - run:
+          name: Build & push << parameters.component >> image
+          command: docker build -f Dockerfile --build-arg COMPONENT=<< parameters.component >> -t ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME-<< parameters.component >>:$VERSION-amd64 --push .
+  build_arm64_images:
+    docker:
+      - image: cimg/base:current
+    resource_class: arm.large
+    parameters:
+      component:
+        type: string
+    steps:
+      - setup_remote_docker
+      - checkout
+      - login_to_ghcr
+      - generate_version
+      - run:
+          name: Build & push << parameters.component >> image
+          command: docker build -f Dockerfile --build-arg COMPONENT=<< parameters.component >> -t ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME-<< parameters.component >>:$VERSION-arm64 --push .
+  create_multiarch_manifest:
     docker:
       - image: cimg/base:current
     parameters:
@@ -55,15 +86,17 @@ jobs:
         type: string
     steps:
       - setup_remote_docker
-      - checkout
-      - run:
-          name: Setup docker buildx
-          command: docker buildx create --use --name multiarch --driver docker-container
       - login_to_ghcr
       - generate_version
       - run:
-          name: Build & push << parameters.component >> image
-          command: docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile --build-arg COMPONENT=<< parameters.component >> -t ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME-<< parameters.component >>:$VERSION --push .
+          name: Create manifest
+          command: |
+            docker manifest create ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME-<< parameters.component >>:$VERSION \
+              --amend ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME-<< parameters.component >>:$VERSION-amd64 \
+              --amend ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME-<< parameters.component >>:$VERSION-arm64
+      - run:
+          name: Push manifest
+          command: docker manifest push ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME-<< parameters.component >>:$VERSION
   publish_helm_chart:
     docker:
       - image: cimg/base:current
@@ -89,8 +122,8 @@ workflows:
           filters:
             tags:
               only: /\d+\.\d+\.\d+/
-      - build_image:
-          name: build << matrix.component >> image
+      - build_amd64_images:
+          name: build amd64 << matrix.component >> image
           context:
             - github
           requires:
@@ -103,12 +136,34 @@ workflows:
               only: develop
             tags:
               only: /\d+\.\d+\.\d+/
-      - publish_helm_chart:
+      - build_arm64_images:
+          name: build arm64 << matrix.component >> image
           context:
             - github
           requires:
             - test
-            - build_image
+          matrix:
+            parameters:
+              component: ["controller", "worker"]
+          filters:
+            branches:
+              only: develop
+            tags:
+              only: /\d+\.\d+\.\d+/
+      - create_multiarch_manifest:
+          context:
+            - github
+          requires:
+            - build_amd64_images
+            - build_arm64_images
+          matrix:
+            parameters:
+              component: ["controller", "worker"]
+      - publish_helm_chart:
+          context:
+            - github
+          requires:
+            - create_multiarch_manifest
           filters:
             branches:
               only: develop

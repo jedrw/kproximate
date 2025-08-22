@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.25-alpine3.22 AS build
+FROM golang:1.25-alpine3.22 AS build
 RUN apk add upx
 WORKDIR $GOPATH/src/kproximate
 COPY . .
@@ -7,7 +7,7 @@ ARG TARGETARCH
 RUN cd kproximate/$COMPONENT && GOOS=linux GOARCH=$TARGETARCH go build -v -o /go/bin/$COMPONENT
 RUN upx /go/bin/$COMPONENT
 
-FROM --platform=$BUILDPLATFORM alpine
+FROM alpine
 ARG COMPONENT
 RUN adduser \    
     --disabled-password \    
