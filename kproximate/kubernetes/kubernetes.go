@@ -45,8 +45,11 @@ type KubernetesClient struct {
 }
 
 type UnschedulableResources struct {
-	Cpu    float64
-	Memory int64
+	Cpu                    float64
+	Memory                 int64
+	AffinityMismatch       bool
+	MissingNodeSelector    bool
+	RequiredLabels         map[string]string
 }
 
 type WorkerNodesAllocatableResources struct {
@@ -99,6 +102,8 @@ func isUnschedulable(condition apiv1.PodCondition) bool {
 func (k *KubernetesClient) GetUnschedulableResources(kpNodeCores int64, kpNodeNameRegex regexp.Regexp) (UnschedulableResources, error) {
 	var rCpu float64
 	var rMemory float64
+	var affinityMismatch bool
+	var missingNodeSelector bool
 
 	pods, err := k.client.CoreV1().Pods("").List(
 		context.TODO(),
@@ -138,13 +143,31 @@ PODLOOP:
 						rMemory += container.Resources.Requests.Memory().AsApproximateFloat64()
 					}
 				}
+
+				if strings.Contains(condition.Message, "didn't match Pod's node affinity/selector") {
+					affinityMismatch = true
+					logger.InfoLog(fmt.Sprintf("Pod (%s) unschedulable due to node affinity/selector mismatch", pod.Name))
+				}
+
+				if strings.Contains(condition.Message, "didn't match node selector") {
+					missingNodeSelector = true
+					logger.InfoLog(fmt.Sprintf("Pod (%s) unschedulable due to missing node selector", pod.Name))
+				}
 			}
 		}
 	}
 
+	requiredLabels := make(map[string]string)
+	if affinityMismatch || missingNodeSelector {
+		requiredLabels = k.extractRequiredLabels(pods.Items)
+	}
+
 	unschedulableResources := UnschedulableResources{
-		Cpu:    rCpu,
-		Memory: int64(rMemory),
+		Cpu:                 rCpu,
+		Memory:              int64(rMemory),
+		AffinityMismatch:    affinityMismatch,
+		MissingNodeSelector: missingNodeSelector,
+		RequiredLabels:      requiredLabels,
 	}
 
 	return unschedulableResources, err
@@ -542,4 +565,38 @@ func (k *KubernetesClient) GetDriftedNodes(kpNodeNameRegex regexp.Regexp, templa
 
 	return driftedNodes, nil
 
+}
+
+func (k *KubernetesClient) extractRequiredLabels(pods []apiv1.Pod) map[string]string {
+	requiredLabels := make(map[string]string)
+
+	for _, pod := range pods {
+		for _, condition := range pod.Status.Conditions {
+			if !isUnschedulable(condition) {
+				continue
+			}
+
+			// Extract from nodeSelector
+			if pod.Spec.NodeSelector != nil {
+				for key, value := range pod.Spec.NodeSelector {
+					requiredLabels[key] = value
+				}
+			}
+
+			// Extract from node affinity
+			if pod.Spec.Affinity != nil && pod.Spec.Affinity.NodeAffinity != nil {
+				if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+					for _, term := range pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+						for _, expr := range term.MatchExpressions {
+							if expr.Operator == apiv1.NodeSelectorOpIn && len(expr.Values) > 0 {
+								requiredLabels[expr.Key] = expr.Values[0]
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return requiredLabels
 }

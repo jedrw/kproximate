@@ -7,6 +7,11 @@ kproximate:
     ## Verbose logging
     debug: false
 
+    ## Enable scaling based on node affinity/selector mismatches. When enabled, kproximate
+    ## will provision a new node if pods are unschedulable due to node affinity or selector
+    ## constraints. Ensure kpNodeLabels are configured to match pod requirements.
+    enableAffinityScaling: false
+
     ## The period to wait for a provisioned node to join the kubernetes cluster before the scaling 
     ## event is declared to have failed.
     waitSecondsForJoin: 120

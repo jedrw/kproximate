@@ -8,30 +8,31 @@ import (
 )
 
 type KproximateConfig struct {
-	Debug                   bool   `env:"debug"`
-	KpJoinCommand           string `env:"kpJoinCommand"`
-	KpNodeCores             int    `env:"kpNodeCores"`
-	KpNodeDisableSsh        bool   `env:"kpNodeDisableSsh"`
-	KpNodeMemory            int    `env:"kpNodeMemory"`
-	KpNodeLabels            string `env:"kpNodeLabels"`
-	KpNodeNamePrefix        string `env:"kpNodeNamePrefix"`
-	KpNodeNameRegex         regexp.Regexp
-	KpNodeParams            map[string]interface{}
-	KpNodeTemplateName      string  `env:"kpNodeTemplateName"`
-	KpQemuExecJoin          bool    `env:"kpQemuExecJoin"`
-	KpLocalTemplateStorage  bool    `env:"kpLocalTemplateStorage"`
-	LoadHeadroom            float64 `env:"loadHeadroom"`
-	MaxKpNodes              int     `env:"maxKpNodes"`
-	PmAllowInsecure         bool    `env:"pmAllowInsecure"`
-	PmDebug                 bool    `env:"pmDebug"`
-	PmPassword              string  `env:"pmPassword"`
-	PmToken                 string  `env:"pmToken"`
-	PmUrl                   string  `env:"pmUrl"`
-	PmUserID                string  `env:"pmUserID"`
-	PollInterval            int     `env:"pollInterval"`
-	SshKey                  string  `env:"sshKey"`
-	WaitSecondsForJoin      int     `env:"waitSecondsForJoin"`
-	WaitSecondsForProvision int     `env:"waitSecondsForProvision"`
+	Debug                      bool   `env:"debug"`
+	EnableAffinityScaling      bool   `env:"enableAffinityScaling"`
+	KpJoinCommand              string `env:"kpJoinCommand"`
+	KpNodeCores                int    `env:"kpNodeCores"`
+	KpNodeDisableSsh           bool   `env:"kpNodeDisableSsh"`
+	KpNodeMemory               int    `env:"kpNodeMemory"`
+	KpNodeLabels               string `env:"kpNodeLabels"`
+	KpNodeNamePrefix           string `env:"kpNodeNamePrefix"`
+	KpNodeNameRegex            regexp.Regexp
+	KpNodeParams               map[string]interface{}
+	KpNodeTemplateName         string  `env:"kpNodeTemplateName"`
+	KpQemuExecJoin             bool    `env:"kpQemuExecJoin"`
+	KpLocalTemplateStorage     bool    `env:"kpLocalTemplateStorage"`
+	LoadHeadroom               float64 `env:"loadHeadroom"`
+	MaxKpNodes                 int     `env:"maxKpNodes"`
+	PmAllowInsecure            bool    `env:"pmAllowInsecure"`
+	PmDebug                    bool    `env:"pmDebug"`
+	PmPassword                 string  `env:"pmPassword"`
+	PmToken                    string  `env:"pmToken"`
+	PmUrl                      string  `env:"pmUrl"`
+	PmUserID                   string  `env:"pmUserID"`
+	PollInterval               int     `env:"pollInterval"`
+	SshKey                     string  `env:"sshKey"`
+	WaitSecondsForJoin         int     `env:"waitSecondsForJoin"`
+	WaitSecondsForProvision    int     `env:"waitSecondsForProvision"`
 }
 
 type RabbitConfig struct {

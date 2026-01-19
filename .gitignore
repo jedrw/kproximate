@@ -4,3 +4,5 @@ test-pod.yaml
 unschedulable.yaml
 
 chart/kproximate/**/*.tgz
+
+.idea

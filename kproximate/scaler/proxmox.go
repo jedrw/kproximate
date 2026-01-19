@@ -93,6 +93,16 @@ func (scaler *ProxmoxScaler) requiredScaleEvents(requiredResources kubernetes.Un
 	// The largest of the above two node requirements
 	numNodesRequired := int(math.Max(float64(numCpuNodesRequired), float64(numMemoryNodesRequired)))
 
+	// If affinity/selector mismatch detected and no resource-based scaling needed, check if configured labels match
+	if scaler.config.EnableAffinityScaling && numNodesRequired == 0 && numCurrentEvents == 0 && (requiredResources.AffinityMismatch || requiredResources.MissingNodeSelector) {
+		if scaler.configuredLabelsMatchRequired(requiredResources.RequiredLabels) {
+			logger.InfoLog("Triggering scale up due to node affinity/selector mismatch with matching labels")
+			numNodesRequired = 1
+		} else {
+			logger.WarnLog("Pod affinity/selector mismatch detected but configured kpNodeLabels do not match required labels", "required", fmt.Sprintf("%+v", requiredResources.RequiredLabels))
+		}
+	}
+
 	for range numNodesRequired {
 		scaleEvent := ScaleEvent{
 			NodeName: scaler.newKpNodeName(),
@@ -536,4 +546,34 @@ func (scaler *ProxmoxScaler) ReplaceNode(ctx context.Context, replaceEvent *Scal
 	}
 
 	return replacementNodeName, nil
+}
+
+func (scaler *ProxmoxScaler) configuredLabelsMatchRequired(requiredLabels map[string]string) bool {
+	if len(requiredLabels) == 0 {
+		return false
+	}
+
+	configuredLabels := make(map[string]string)
+	if scaler.config.KpNodeLabels != "" {
+		for _, label := range strings.Split(scaler.config.KpNodeLabels, ",") {
+			parts := strings.Split(label, "=")
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				value := strings.TrimSpace(parts[1])
+				// Skip templated values for now
+				if !strings.Contains(value, "{{") {
+					configuredLabels[key] = value
+				}
+			}
+		}
+	}
+
+	// Check if at least one required label matches
+	for reqKey, reqValue := range requiredLabels {
+		if configuredValue, exists := configuredLabels[reqKey]; exists && configuredValue == reqValue {
+			return true
+		}
+	}
+
+	return false
 }
