@@ -12,11 +12,11 @@ kproximate:
     ## constraints. Ensure kpNodeLabels are configured to match pod requirements.
     enableAffinityScaling: false
 
-    ## The period to wait for a provisioned node to join the kubernetes cluster before the scaling 
+    ## The period to wait for a provisioned node to join the kubernetes cluster before the scaling
     ## event is declared to have failed.
     waitSecondsForJoin: 120
 
-    ## The period to wait for a new node to be provisioned and declared ready before the scaling 
+    ## The period to wait for a new node to be provisioned and declared ready before the scaling
     ## event is declared to have failed.
     waitSecondsForProvision: 120
 
@@ -34,8 +34,8 @@ kproximate:
     ## The amount of memory assigned to new kproximate nodes in MiB.
     kpNodeMemory: 2048
 
-    ## Set labels on kp nodes. A comma separated list of labels to apply to kp-nodes in 
-    ## the format "some.key=somevalue". It is also possible to use values only known at 
+    ## Set labels on kp nodes. A comma separated list of labels to apply to kp-nodes in
+    ## the format "some.key=somevalue". It is also possible to use values only known at
     ## provisioning time using go templating. Currently the only supported template value
     ## is "targetHost" which is the name of the proxmox host on which the kp-node is to be
     ## provsioned e.g. "topology.kubernetes.io/zone={{ targetHost }}".
@@ -52,7 +52,7 @@ kproximate:
 
     ## Set true if using local storage for templates.
     kpLocalTemplateStorage: false
-    
+
     ## The maximum number of kproximate nodes allowed.
     maxKpNodes: 3
 
@@ -75,12 +75,12 @@ kproximate:
     rabbitMQHost: kproximate-rabbitmq
 
     ## The rabbitmq service port
-    rabbitMQPort: 5672
+    rabbitMQPort: 5671
 
   secrets:
     ## The command to use to join worker nodes to the kubernetes cluster.
-    kpJoinCommand: "" 
-    
+    kpJoinCommand: ""
+
     ## The user's Proxmox password
     pmPassword: "" ## Required if pmToken not set
 
@@ -105,7 +105,7 @@ rabbitmq:
     enabled: false
   extraPlugins: ""
   affinity:
-    nodeAffinity: 
+    nodeAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
         - weight: 1
           preference:
@@ -163,5 +163,5 @@ resources: {}
   #   memory: 128Mi
 
 nodeSelector: {}
-             
+
 tolerations: []
