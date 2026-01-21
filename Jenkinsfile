@@ -5,7 +5,7 @@ pipeline {
         GCP_REGION = "${env.GCP_REGION ?: 'us-central1'}"
         GCP_PROJECT_ID = "${env.GCP_PROJECT_ID ?: 'customarypaas'}"
         REGISTRY = "${GCP_REGION}-docker.pkg.dev"
-        IMAGE_BASE = "${REGISTRY}/${GCP_PROJECT_ID}/kproximate"
+        IMAGE_BASE = "${REGISTRY}/${GCP_PROJECT_ID}/kproximate/kproximate"
         VERSION = "${env.GIT_TAG_NAME ?: "0.0.0-${env.BUILD_NUMBER}"}"
     }
 
