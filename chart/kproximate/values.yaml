@@ -74,6 +74,9 @@ kproximate:
     ## The number of seconds between polls of the cluster for scaling.
     pollInterval: 10
 
+    ## Cooldown period in seconds after a scale-up before allowing scale-down.
+    scaleDownCooldownSeconds: 300
+
     ## The rabbitmq service address
     rabbitMQHost: kproximate-rabbitmq
 

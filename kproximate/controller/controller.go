@@ -56,6 +56,8 @@ func main() {
 
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
+	var lastScaleUpTime time.Time
+
 	go metrics.Serve(ctx, kpScaler, kpConfig)
 	logger.InfoLog("Started")
 	for {
@@ -65,8 +67,11 @@ func main() {
 		default:
 			time.Sleep(time.Second * time.Duration(kpConfig.PollInterval))
 
-			assessScaleUp(ctx, kpScaler, kpConfig.MaxKpNodes, rabbitConfig, channel, mgmtClient)
-			assessScaleDown(ctx, kpScaler, rabbitConfig, channel, mgmtClient)
+			scaledUp := assessScaleUp(ctx, kpScaler, kpConfig.MaxKpNodes, rabbitConfig, channel, mgmtClient)
+			if scaledUp {
+				lastScaleUpTime = time.Now()
+			}
+			assessScaleDown(ctx, kpScaler, rabbitConfig, channel, mgmtClient, lastScaleUpTime, kpConfig.ScaleDownCooldownSeconds)
 			assessNodeDrift(ctx, kpScaler, rabbitConfig, channel, mgmtClient)
 		}
 	}
@@ -80,7 +85,7 @@ func assessScaleUp(
 	rabbitConfig config.RabbitConfig,
 	channel *amqp.Channel,
 	mgmtClient *http.Client,
-) {
+) bool {
 
 	logger.DebugLog("Assessing for scale up")
 	allScaleEvents, err := countScalingEvents(
@@ -129,10 +134,12 @@ func assessScaleUp(
 
 			time.Sleep(time.Second * 1)
 		}
+		return len(scaleUpEvents) > 0
 	} else {
 		logger.DebugLog("Cannot scale up, reached maxKpNodes")
 	}
 
+	return false
 }
 
 func assessScaleDown(
@@ -141,8 +148,22 @@ func assessScaleDown(
 	rabbitConfig config.RabbitConfig,
 	channel *amqp.Channel,
 	mgmtClient *http.Client,
+	lastScaleUpTime time.Time,
+	cooldownSeconds int,
 ) {
 	logger.DebugLog("Assessing for scale down")
+
+	// Check cooldown period
+	if !lastScaleUpTime.IsZero() && cooldownSeconds > 0 {
+		timeSinceLastScaleUp := time.Since(lastScaleUpTime)
+		cooldownDuration := time.Duration(cooldownSeconds) * time.Second
+		if timeSinceLastScaleUp < cooldownDuration {
+			remainingCooldown := cooldownDuration - timeSinceLastScaleUp
+			logger.DebugLog(fmt.Sprintf("Scale down in cooldown period, %d seconds remaining", int(remainingCooldown.Seconds())))
+			return
+		}
+	}
+
 	allScaleEvents, err := countScalingEvents(
 		[]string{
 			scaler.ScaleUpQueueName,

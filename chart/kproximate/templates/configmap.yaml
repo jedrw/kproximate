@@ -21,6 +21,7 @@ data:
   pmUrl: {{ .Values.kproximate.config.pmUrl | quote | required ".Values.kproximate.config.pmUrl is required" }}
   pmUserID: {{ .Values.kproximate.config.pmUserID | quote | required ".Values.kproximate.config.pmUserID is required" }}
   pollInterval: {{ .Values.kproximate.config.pollInterval | quote }}
+  scaleDownCooldownSeconds: {{ .Values.kproximate.config.scaleDownCooldownSeconds | quote }}
   rabbitMQHost: {{ .Values.kproximate.config.rabbitMQHost | quote }}
   rabbitMQPort: {{ .Values.kproximate.config.rabbitMQPort | quote }}
   rabbitMQUser: {{ .Values.rabbitmq.auth.username | quote }}

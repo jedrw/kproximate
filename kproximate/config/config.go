@@ -31,6 +31,7 @@ type KproximateConfig struct {
 	PmUrl                      string  `env:"pmUrl"`
 	PmUserID                   string  `env:"pmUserID"`
 	PollInterval               int     `env:"pollInterval"`
+	ScaleDownCooldownSeconds   int     `env:"scaleDownCooldownSeconds"`
 	SshKey                     string  `env:"sshKey"`
 	WaitSecondsForJoin         int     `env:"waitSecondsForJoin"`
 	WaitSecondsForProvision    int     `env:"waitSecondsForProvision"`
