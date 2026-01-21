@@ -62,6 +62,9 @@ kproximate:
     ## Set true to enable debug output for Proxmox API calls.
     pmDebug: false
 
+    ## Comma-separated list of Proxmox host names to exclude from provisioning.
+    pmExcludeHosts: ""
+
     ## The Proxmox API URL.
     pmUrl: null ## Required
 

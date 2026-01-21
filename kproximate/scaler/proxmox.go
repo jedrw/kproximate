@@ -173,6 +173,28 @@ func (scaler *ProxmoxScaler) SelectTargetHosts(ctx context.Context, scaleEvents 
 		return err
 	}
 
+	// Filter excluded hosts
+	if scaler.config.PmExcludeHosts != "" {
+		excludedHosts := strings.Split(scaler.config.PmExcludeHosts, ",")
+		filteredHosts := []proxmox.HostInformation{}
+		for _, host := range hosts {
+			excluded := false
+			for _, excludedHost := range excludedHosts {
+				if strings.TrimSpace(excludedHost) == host.Node {
+					excluded = true
+					break
+				}
+			}
+			if !excluded {
+				filteredHosts = append(filteredHosts, host)
+			}
+		}
+		if len(filteredHosts) == 0 {
+			return fmt.Errorf("no available hosts after applying exclusions")
+		}
+		hosts = filteredHosts
+	}
+
 	kpNodes, err := scaler.Proxmox.GetRunningKpNodes(ctx, scaler.config.KpNodeNameRegex)
 	if err != nil {
 		return err

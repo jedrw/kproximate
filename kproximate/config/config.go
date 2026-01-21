@@ -25,6 +25,7 @@ type KproximateConfig struct {
 	MaxKpNodes                 int     `env:"maxKpNodes"`
 	PmAllowInsecure            bool    `env:"pmAllowInsecure"`
 	PmDebug                    bool    `env:"pmDebug"`
+	PmExcludeHosts             string  `env:"pmExcludeHosts"`
 	PmPassword                 string  `env:"pmPassword"`
 	PmToken                    string  `env:"pmToken"`
 	PmUrl                      string  `env:"pmUrl"`

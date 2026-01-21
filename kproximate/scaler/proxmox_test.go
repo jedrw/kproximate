@@ -602,3 +602,169 @@ func TestParseNodeLabels(t *testing.T) {
 		t.Errorf("Expected topology.kubernetes.io/zone label to have 'proxmox-node-01' as value, got %s", labels["topology.kubernetes.io/zone"])
 	}
 }
+
+func TestSelectTargetHostsWithExcludedHosts(t *testing.T) {
+	s := ProxmoxScaler{
+		Proxmox: &proxmox.ProxmoxMock{
+			ClusterStats: []proxmox.HostInformation{
+				{
+					Id:     "node/host-01",
+					Node:   "host-01",
+					Cpu:    0.2,
+					Mem:    20394792448,
+					Maxmem: 16647962624,
+					Status: "online",
+				},
+				{
+					Id:     "node/host-02",
+					Node:   "host-02",
+					Cpu:    0.2,
+					Mem:    20394792448,
+					Maxmem: 16647962624,
+					Status: "online",
+				},
+				{
+					Id:     "node/host-03",
+					Node:   "host-03",
+					Cpu:    0.2,
+					Mem:    11394792448,
+					Maxmem: 16647962624,
+					Status: "online",
+				},
+			},
+			RunningKpNodes: []proxmox.VmInformation{},
+		},
+		config: config.KproximateConfig{
+			KpNodeNameRegex:  *regexp.MustCompile(`^kp-node-\\w{8}-\\w{4}-\\w{4}-\\w{4}-\\w{12}$`),
+			KpNodeNamePrefix: "kp-node",
+			PmExcludeHosts:   "host-01",
+		},
+	}
+
+	scaleEvents := []*ScaleEvent{
+		{
+			NodeName: fmt.Sprintf("%s-%s", s.config.KpNodeNamePrefix, uuid.NewUUID()),
+		},
+	}
+
+	err := s.SelectTargetHosts(t.Context(), scaleEvents)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if scaleEvents[0].TargetHost.Node == "host-01" {
+		t.Errorf("Expected host-01 to be excluded, but it was selected")
+	}
+
+	if scaleEvents[0].TargetHost.Node != "host-02" && scaleEvents[0].TargetHost.Node != "host-03" {
+		t.Errorf("Expected host-02 or host-03 to be selected, got %s", scaleEvents[0].TargetHost.Node)
+	}
+}
+
+func TestSelectTargetHostsWithMultipleExcludedHosts(t *testing.T) {
+	s := ProxmoxScaler{
+		Proxmox: &proxmox.ProxmoxMock{
+			ClusterStats: []proxmox.HostInformation{
+				{
+					Id:     "node/host-01",
+					Node:   "host-01",
+					Cpu:    0.2,
+					Mem:    20394792448,
+					Maxmem: 16647962624,
+					Status: "online",
+				},
+				{
+					Id:     "node/host-02",
+					Node:   "host-02",
+					Cpu:    0.2,
+					Mem:    20394792448,
+					Maxmem: 16647962624,
+					Status: "online",
+				},
+				{
+					Id:     "node/host-03",
+					Node:   "host-03",
+					Cpu:    0.2,
+					Mem:    11394792448,
+					Maxmem: 16647962624,
+					Status: "online",
+				},
+			},
+			RunningKpNodes: []proxmox.VmInformation{},
+		},
+		config: config.KproximateConfig{
+			KpNodeNameRegex:  *regexp.MustCompile(`^kp-node-\\w{8}-\\w{4}-\\w{4}-\\w{4}-\\w{12}$`),
+			KpNodeNamePrefix: "kp-node",
+			PmExcludeHosts:   "host-01,host-02",
+		},
+	}
+
+	scaleEvents := []*ScaleEvent{
+		{
+			NodeName: fmt.Sprintf("%s-%s", s.config.KpNodeNamePrefix, uuid.NewUUID()),
+		},
+	}
+
+	err := s.SelectTargetHosts(t.Context(), scaleEvents)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if scaleEvents[0].TargetHost.Node != "host-03" {
+		t.Errorf("Expected host-03 to be selected, got %s", scaleEvents[0].TargetHost.Node)
+	}
+}
+
+func TestSelectTargetHostsWithExcludedHostsAndWhitespace(t *testing.T) {
+	s := ProxmoxScaler{
+		Proxmox: &proxmox.ProxmoxMock{
+			ClusterStats: []proxmox.HostInformation{
+				{
+					Id:     "node/host-01",
+					Node:   "host-01",
+					Cpu:    0.2,
+					Mem:    20394792448,
+					Maxmem: 16647962624,
+					Status: "online",
+				},
+				{
+					Id:     "node/host-02",
+					Node:   "host-02",
+					Cpu:    0.2,
+					Mem:    20394792448,
+					Maxmem: 16647962624,
+					Status: "online",
+				},
+				{
+					Id:     "node/host-03",
+					Node:   "host-03",
+					Cpu:    0.2,
+					Mem:    20394792448,
+					Maxmem: 16647962624,
+					Status: "online",
+				},
+			},
+			RunningKpNodes: []proxmox.VmInformation{},
+		},
+		config: config.KproximateConfig{
+			KpNodeNameRegex:  *regexp.MustCompile(`^kp-node-\\w{8}-\\w{4}-\\w{4}-\\w{4}-\\w{12}$`),
+			KpNodeNamePrefix: "kp-node",
+			PmExcludeHosts:   " host-01 ",
+		},
+	}
+
+	scaleEvents := []*ScaleEvent{
+		{
+			NodeName: fmt.Sprintf("%s-%s", s.config.KpNodeNamePrefix, uuid.NewUUID()),
+		},
+	}
+
+	err := s.SelectTargetHosts(t.Context(), scaleEvents)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if scaleEvents[0].TargetHost.Node == "host-01" {
+		t.Errorf("Expected host-01 to be excluded, got %s", scaleEvents[0].TargetHost.Node)
+	}
+}

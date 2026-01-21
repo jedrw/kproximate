@@ -17,6 +17,7 @@ data:
   maxKpNodes: {{ .Values.kproximate.config.maxKpNodes | quote }}
   pmAllowInsecure: {{ .Values.kproximate.config.pmAllowInsecure | quote }}
   pmDebug: {{ .Values.kproximate.config.pmDebug | quote }}
+  pmExcludeHosts: {{ .Values.kproximate.config.pmExcludeHosts | quote }}
   pmUrl: {{ .Values.kproximate.config.pmUrl | quote | required ".Values.kproximate.config.pmUrl is required" }}
   pmUserID: {{ .Values.kproximate.config.pmUserID | quote | required ".Values.kproximate.config.pmUserID is required" }}
   pollInterval: {{ .Values.kproximate.config.pollInterval | quote }}
