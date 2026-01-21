@@ -25,7 +25,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: "{{ .Chart.Name }}-worker"
-          image: "{{ .Values.image.registry }}/kproximate-worker:{{ .Chart.AppVersion }}"
+          image: "{{ .Values.image.registry }}{{ if .Values.image.registry }}/{{ end }}kproximate-worker:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           envFrom:
           - configMapRef:
@@ -73,18 +73,18 @@ spec:
       {{- end }}
       initContainers:
       - name: worker-wait-for-rabbitmq
-        image: curlimages/curl
+        image: busybox:1.36
         envFrom:
           - configMapRef:
-              name: {{ include "kproximate.fullname" . }}
-          - secretRef:
               name: {{ include "kproximate.fullname" . }}
         args:
         - /bin/sh
         - -c
         - >
-          while [ $(curl -sw '%{http_code}' --user ${rabbitMQUser}:${rabbitMQPassword} "http://${rabbitMQHost}:15672/api/health/checks/local-alarms" -o /dev/null) -ne 200 ]; do
+          until nc -z ${rabbitMQHost}.default.svc.cluster.local ${rabbitMQPort}; do
+            echo "Waiting for RabbitMQ...";
             sleep 5;
-          done
+          done;
+          echo "RabbitMQ is ready"
         securityContext:
           {{- toYaml .Values.securityContext | nindent 12 }}

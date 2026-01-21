@@ -75,7 +75,7 @@ kproximate:
     rabbitMQHost: kproximate-rabbitmq
 
     ## The rabbitmq service port
-    rabbitMQPort: 5671
+    rabbitMQPort: 5672
 
   secrets:
     ## The command to use to join worker nodes to the kubernetes cluster.

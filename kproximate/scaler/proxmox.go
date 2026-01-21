@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strings"
 	"text/template"
@@ -209,7 +210,7 @@ func (scaler *ProxmoxScaler) RequiredScaleUpEvents(allScaleEvents int) ([]*Scale
 		logger.ErrorLog("Failed to get unschedulable resources:", "error", err)
 	}
 
-	if unschedulableResources != (kubernetes.UnschedulableResources{}) {
+	if !reflect.DeepEqual(unschedulableResources, kubernetes.UnschedulableResources{}) {
 		logger.DebugLog("Found unschedulable resources", "resources", fmt.Sprintf("%+v", unschedulableResources))
 	}
 

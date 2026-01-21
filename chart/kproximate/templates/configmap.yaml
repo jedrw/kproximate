@@ -4,6 +4,7 @@ metadata:
   name: {{ include "kproximate.fullname" . }}
 data:
   debug: {{ .Values.kproximate.config.debug | quote }}
+  enableAffinityScaling: {{ .Values.kproximate.config.enableAffinityScaling | quote }}
   kpNodeCores: {{ .Values.kproximate.config.kpNodeCores | quote }}
   kpNodeDisableSsh: {{ .Values.kproximate.config.kpNodeDisableSsh | quote }}
   kpNodeLabels: {{ .Values.kproximate.config.kpNodeLabels | quote }}
