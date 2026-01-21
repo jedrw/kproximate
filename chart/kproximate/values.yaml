@@ -123,8 +123,15 @@ rabbitmq:
       effect: NoSchedule
 
 image:
-  registry: ghcr.io/jedrw
+  controller:
+    repository: ghcr.io/jedrw/kproximate-controller
+    tag: ""
+  worker:
+    repository: ghcr.io/jedrw/kproximate-worker
+    tag: ""
   pullPolicy: IfNotPresent
+
+imagePullSecrets: []
 
 nameOverride: ""
 fullnameOverride: ""

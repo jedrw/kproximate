@@ -21,11 +21,15 @@ spec:
         {{- include "kproximate.workerSelectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "kproximate.fullname" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: "{{ .Chart.Name }}-worker"
-          image: "{{ .Values.image.registry }}{{ if .Values.image.registry }}/{{ end }}kproximate-worker:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.image.worker.repository | default "ghcr.io/jedrw/kproximate-worker" }}:{{ .Values.image.worker.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           envFrom:
           - configMapRef:
@@ -33,7 +37,7 @@ spec:
           - secretRef:
               name: {{ include "kproximate.fullname" . }}
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}          
+            {{- toYaml .Values.securityContext | nindent 12 }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
@@ -41,15 +45,15 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       affinity:
-        podAntiAffinity: 
-          preferredDuringSchedulingIgnoredDuringExecution: 
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 1
             podAffinityTerm:
               topologyKey: kubernetes.io/hostname
               labelSelector:
                 matchExpressions:
                 - key: app.kubernetes.io/component
-                  operator: In 
+                  operator: In
                   values:
                   - {{ .Chart.Name }}-worker
         nodeAffinity:
@@ -60,31 +64,31 @@ spec:
               - key: node-role.kubernetes.io/control-plane
                 operator: Exists
               - key: node-role.kubernetes.io/master
-                operator: Exists 
+                operator: Exists
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
         - key: node-role.kubernetes.io/master
-          operator: Exists 
+          operator: Exists
           effect: NoSchedule
       {{- with .Values.tolerations }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
       initContainers:
       - name: worker-wait-for-rabbitmq
-        image: busybox:1.36
+        image: curlimages/curl
         envFrom:
           - configMapRef:
+              name: {{ include "kproximate.fullname" . }}
+          - secretRef:
               name: {{ include "kproximate.fullname" . }}
         args:
         - /bin/sh
         - -c
         - >
-          until nc -z ${rabbitMQHost}.default.svc.cluster.local ${rabbitMQPort}; do
-            echo "Waiting for RabbitMQ...";
+          while [ $(curl -sw '%{http_code}' --user ${rabbitMQUser}:${rabbitMQPassword} "http://${rabbitMQHost}:15672/api/health/checks/local-alarms" -o /dev/null) -ne 200 ]; do
             sleep 5;
-          done;
-          echo "RabbitMQ is ready"
+          done
         securityContext:
           {{- toYaml .Values.securityContext | nindent 12 }}
