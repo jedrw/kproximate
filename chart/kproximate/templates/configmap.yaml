@@ -15,6 +15,7 @@ data:
   kpLocalTemplateStorage: {{ .Values.kproximate.config.kpLocalTemplateStorage | quote }}
   loadHeadroom: {{ .Values.kproximate.config.loadHeadroom | quote }}
   maxKpNodes: {{ .Values.kproximate.config.maxKpNodes | quote }}
+  minNodeLoadForScaleDown: {{ .Values.kproximate.config.minNodeLoadForScaleDown | quote }}
   pmAllowInsecure: {{ .Values.kproximate.config.pmAllowInsecure | quote }}
   pmDebug: {{ .Values.kproximate.config.pmDebug | quote }}
   pmExcludeHosts: {{ .Values.kproximate.config.pmExcludeHosts | quote }}

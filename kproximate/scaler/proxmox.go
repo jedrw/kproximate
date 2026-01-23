@@ -470,11 +470,20 @@ func (scaler *ProxmoxScaler) selectScaleDownTarget(scaleEvent *ScaleEvent) error
 	}
 
 	targetNode := kpNodes[0].Name
+	lowestLoad := nodeLoads[targetNode]
+	
 	// Choose the kpnode with the lowest combined load
 	for node := range nodeLoads {
-		if nodeLoads[node] < nodeLoads[targetNode] {
+		if nodeLoads[node] < lowestLoad {
 			targetNode = node
+			lowestLoad = nodeLoads[node]
 		}
+	}
+
+	// Only scale down if the node is significantly underutilized
+	if scaler.config.MinNodeLoadForScaleDown > 0 && lowestLoad >= scaler.config.MinNodeLoadForScaleDown {
+		return fmt.Errorf("no underutilized nodes found (lowest load: %.2f, threshold: %.2f)", 
+			lowestLoad, scaler.config.MinNodeLoadForScaleDown)
 	}
 
 	scaleEvent.NodeName = targetNode

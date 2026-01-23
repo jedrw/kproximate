@@ -16,6 +16,7 @@ type KubernetesMock struct {
 	WorkerNodesAllocatableResources        WorkerNodesAllocatableResources
 	FailedSchedulingDueToControlPlaneTaint bool
 	KpNodes                                []apiv1.Node
+	Nodes                                  []*apiv1.Node
 }
 
 func (m *KubernetesMock) GetUnschedulableResources(kpNodeCores int64, kpNodeNameRegex regexp.Regexp) (UnschedulableResources, error) {
@@ -35,6 +36,15 @@ func (m *KubernetesMock) GetWorkerNodesAllocatableResources() (WorkerNodesAlloca
 }
 
 func (m *KubernetesMock) GetKpNodes(kpNodeNameRegex regexp.Regexp) ([]apiv1.Node, error) {
+	if m.Nodes != nil {
+		// Convert []*apiv1.Node to []apiv1.Node
+		nodes := make([]apiv1.Node, len(m.Nodes))
+		for i, node := range m.Nodes {
+			nodes[i] = *node
+		}
+		return nodes, nil
+	}
+
 	if m.KpNodes != nil {
 		return m.KpNodes, nil
 	}

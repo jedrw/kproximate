@@ -56,6 +56,11 @@ kproximate:
     ## The maximum number of kproximate nodes allowed.
     maxKpNodes: 3
 
+    ## Minimum combined CPU+Memory load (0-1) required for a node to be considered for scale down.
+    ## Nodes with load above this threshold will not be scaled down. Default: 0.3 (30%)
+    ## Set to 0 to disable threshold (always scale down least loaded node).
+    minNodeLoadForScaleDown: 0.3
+
     ## Set true to skip TLS checks for the Proxmox API.
     pmAllowInsecure: false
 

@@ -23,6 +23,7 @@ type KproximateConfig struct {
 	KpLocalTemplateStorage     bool    `env:"kpLocalTemplateStorage"`
 	LoadHeadroom               float64 `env:"loadHeadroom"`
 	MaxKpNodes                 int     `env:"maxKpNodes"`
+	MinNodeLoadForScaleDown    float64 `env:"minNodeLoadForScaleDown"`
 	PmAllowInsecure            bool    `env:"pmAllowInsecure"`
 	PmDebug                    bool    `env:"pmDebug"`
 	PmExcludeHosts             string  `env:"pmExcludeHosts"`
