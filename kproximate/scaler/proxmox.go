@@ -466,7 +466,7 @@ func (scaler *ProxmoxScaler) selectScaleDownTarget(scaleEvent *ScaleEvent) error
 		// Calculate the combined load on each kpNode
 		nodeLoads[node.Name] =
 			(allocatedResources[node.Name].Cpu / float64(scaler.config.KpNodeCores)) +
-				(allocatedResources[node.Name].Memory / float64(scaler.config.KpNodeMemory))
+				(allocatedResources[node.Name].Memory / float64(scaler.config.KpNodeMemory<<20))
 	}
 
 	targetNode := kpNodes[0].Name
