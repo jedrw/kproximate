@@ -41,10 +41,10 @@ func NewProxmoxScaler(ctx context.Context, config config.KproximateConfig) (Scal
 
 	config.KpNodeParams = map[string]interface{}{
 		"agent":     "enabled=1",
-		"balloon":   0,
 		"cores":     config.KpNodeCores,
-		"ipconfig0": "ip=dhcp",
 		"memory":    config.KpNodeMemory,
+		"balloon":   config.KpNodeMemory,
+		"ipconfig0": "ip=dhcp",
 		"onboot":    1,
 	}
 
